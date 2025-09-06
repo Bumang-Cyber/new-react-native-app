@@ -1,5 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+
 import {
   SafeAreaProvider,
   // useSafeAreaInsets,
@@ -10,11 +12,13 @@ function App() {
   // const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <TabNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <TabNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -20,7 +20,7 @@ const CalendarScreen = () => {
 
   const handleGoToToday = () => {
     setCurrentDate(new Date());
-    setSelectedDate(new Date()); // 오늘 날짜도 선택되도록
+    setSelectedDate(new Date());
   };
 
   return (
@@ -37,6 +37,8 @@ const CalendarScreen = () => {
           currentDate={currentDate}
           selectedDate={selectedDate}
           onDatePress={handleDatePress}
+          onSwipeLeft={() => changeMonth(1)} // 다음 달
+          onSwipeRight={() => changeMonth(-1)} // 이전 달
         />
       </View>
     </SafeAreaView>
