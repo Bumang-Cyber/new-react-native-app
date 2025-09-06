@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { colors, typography, spacing } from '../../../src/constants/theme';
 
 interface CalendarHeaderProps {
   currentDate: Date;
@@ -22,11 +23,13 @@ const MONTH_NAMES = [
   'December',
 ];
 
-const CalendarHeader: React.FC<CalendarHeaderProps> = ({
+const WEEK_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const CalendarHeader = ({
   currentDate,
   onPrevMonth,
   onNextMonth,
-}) => {
+}: CalendarHeaderProps) => {
   return (
     <>
       {/* 헤더 */}
@@ -49,7 +52,7 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
 
       {/* 요일 헤더 */}
       <View style={styles.weekHeader}>
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+        {WEEK_NAMES.map(day => (
           <Text key={day} style={styles.weekDay}>
             {day}
           </Text>
@@ -64,27 +67,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   arrow: {
-    fontSize: 18,
-    color: '#007AFF',
-    paddingHorizontal: 20,
+    ...typography.h3,
+    color: colors.primary,
+    paddingHorizontal: spacing.lg,
   },
   monthText: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.monthTitle,
+    color: colors.text.primary,
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    color: '#666',
-    fontSize: 14,
+    color: colors.calendar.weekHeader,
+    ...typography.weekDay,
   },
 });
-
 export default CalendarHeader;

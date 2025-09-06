@@ -21,7 +21,6 @@ const CalendarScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* 헤더 */}
         <CalendarHeader
           currentDate={currentDate}
           onPrevMonth={() => changeMonth(-1)}
