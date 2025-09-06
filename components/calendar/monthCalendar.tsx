@@ -9,7 +9,6 @@ interface MonthCalendarProps {
   referenceDate: Date;
   selectedDate: Date | null;
   onDatePress: (date: Date) => void;
-  isVisible?: boolean;
 }
 
 const MonthCalendar: React.FC<MonthCalendarProps> = ({
@@ -37,8 +36,8 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
                 key={dayIndex}
                 style={[
                   styles.dayContainer,
-                  isSelected && styles.selectedDay,
                   isTodayDate && styles.todayDay,
+                  isSelected && styles.selectedDay,
                 ]}
                 onPress={() => onDatePress(day)}
               >
@@ -46,8 +45,8 @@ const MonthCalendar: React.FC<MonthCalendarProps> = ({
                   style={[
                     styles.dayText,
                     !isCurrentMonthDate && styles.otherMonthText,
-                    isSelected && styles.selectedDayText,
                     isTodayDate && styles.todayText,
+                    isSelected && styles.selectedDayText,
                   ]}
                 >
                   {day.getDate()}

@@ -108,7 +108,6 @@ const CalendarGrid = ({
               referenceDate={startDateInPrevMonth}
               selectedDate={selectedDate}
               onDatePress={onDatePress}
-              isVisible={false}
             />
           </View>
 
@@ -129,7 +128,6 @@ const CalendarGrid = ({
               referenceDate={startDateInNextMonth}
               selectedDate={selectedDate}
               onDatePress={onDatePress}
-              isVisible={false}
             />
           </View>
         </Animated.View>

@@ -6,7 +6,7 @@ import CalendarGrid from '../components/screens/CalendarScreen/CalendarGrid';
 
 const CalendarScreen = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const changeMonth = (direction: number) => {
     const newDate = new Date(currentDate);
