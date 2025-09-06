@@ -18,6 +18,11 @@ const CalendarScreen = () => {
     setSelectedDate(date);
   };
 
+  const handleGoToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(new Date()); // 오늘 날짜도 선택되도록
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -25,6 +30,7 @@ const CalendarScreen = () => {
           currentDate={currentDate}
           onPrevMonth={() => changeMonth(-1)}
           onNextMonth={() => changeMonth(1)}
+          onTodayPress={handleGoToToday}
         />
 
         <CalendarGrid
