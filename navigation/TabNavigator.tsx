@@ -9,7 +9,7 @@ import Icon from 'react-native-vector-icons/FontAwesome6';
 
 const Tab = createBottomTabNavigator();
 
-type IconType = 'house' | 'calendar' | 'dumbbell' | 'user';
+type IconType = 'house' | 'calendar' | 'dumbbell' | 'user-large';
 const getTabBarIcon = ({ route, color, size }: any) => {
   let iconName: IconType;
 
@@ -24,7 +24,7 @@ const getTabBarIcon = ({ route, color, size }: any) => {
       iconName = 'dumbbell';
       break;
     case 'MY PAGE':
-      iconName = 'user';
+      iconName = 'user-large';
       break;
     default:
       iconName = 'house';
