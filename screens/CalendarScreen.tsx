@@ -36,7 +36,7 @@ export default function CalendarPage() {
     dayjs().startOf('day'),
   );
 
-  // ✅ 최초 1회만 anchor로 쓸 초기 날짜를 고정
+  // 최초 1회만 anchor로 쓸 초기 날짜를 고정
   const initialRef = useRef(dayjs().startOf('day'));
 
   // 선택된 날짜의 이벤트 필터
@@ -59,7 +59,6 @@ export default function CalendarPage() {
 
       {/* 캘린더 */}
       <SwipeCalendarInfinite
-        weekStartsOn={0} // 한국 스타일: 월요일 시작
         initialDate={initialRef.current}
         onMonthChange={m => setCurrentMonth(m.startOf('month'))}
         onSelectDate={d => setSelectedDate(d)} // <- 선택만 갱신
