@@ -31,6 +31,7 @@ export type SwipeCalendarHandle = {
   goPrevMonth: () => void;
   goNextMonth: () => void;
   scrollToMonthOffset: (offset: number) => void; // anchor 기준 offset로 스크롤
+  goToday: (select?: boolean) => void;
 };
 
 type Cell = { date: Dayjs; inMonth: boolean };
@@ -45,6 +46,9 @@ const PRELOAD_THRESHOLD = 4; // 가장자리 감지 임계치
 const SIDE_PAD = 12; // styles.monthContainer.paddingHorizontal 과 동일해야 함
 const DATA = Array.from({ length: WINDOW }, (_, i) => i);
 const labels = ['일', '월', '화', '수', '목', '금', '토'];
+
+// baseOffset = 워프(teleport)로 좌표계를 얼마나 옮겼는지의 누적 값
+// effectiveOffset(보이는 달) = baseOffset + (visibleIndex - CENTER)
 
 const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
   ({ initialDate, onMonthChange, onSelectDate }, ref) => {
@@ -83,7 +87,7 @@ const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
       [anchor, offsetFromIndex],
     );
 
-    // 42칸(6주) 그리드 생성
+    // 42칸(6주) '일' 그리드 생성
     const buildMonthMatrix = useCallback((month: Dayjs): Cell[] => {
       const start = month.startOf('month');
       const firstWeekday = start.day(); // 0(일)~6(토)
@@ -270,6 +274,38 @@ const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
             teleportingRef.current = false;
           });
         }
+      },
+      goToday(select = true) {
+        const todayStart = dayjs().startOf('day');
+        const todayMonth = todayStart.startOf('month');
+
+        // anchor로부터 '오늘의 달'까지 몇 개월 차이인지
+        const targetOffset = todayMonth.diff(anchorRef.current, 'month');
+
+        // 내부 jump 로직 (scrollToMonthOffset과 동일한 원리)
+        const idx = targetOffset - baseOffsetRef.current + CENTER;
+        if (idx >= 0 && idx < WINDOW) {
+          // 윈도우 안이면 그냥 스크롤
+          listRef.current?.scrollToIndex({ index: idx, animated: true });
+        } else {
+          // 윈도우 밖이면 기준을 재조정 후 중앙으로 텔레포트
+          teleportingRef.current = true;
+          baseOffsetRef.current = targetOffset;
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({ index: CENTER, animated: false });
+            const mm = anchorRef.current.add(
+              baseOffsetRef.current + (CENTER - CENTER),
+              'month',
+            );
+            setVisibleMonth(mm);
+            onMonthChange?.(mm);
+            lastIndexRef.current = CENTER;
+            teleportingRef.current = false;
+          });
+        }
+
+        // 선택까지 맞추고 싶으면
+        if (select) setSelected(todayStart);
       },
     }));
 
