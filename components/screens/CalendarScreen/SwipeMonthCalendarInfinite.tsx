@@ -27,11 +27,15 @@ type Props = {
   onSelectDate?: (d: Dayjs) => void;
 };
 
-export type SwipeCalendarHandle = {
+export type SwipeMonthCalendarHandle = {
   goPrevMonth: () => void;
   goNextMonth: () => void;
   scrollToMonthOffset: (offset: number) => void; // anchor 기준 offset로 스크롤
   goToday: (select?: boolean) => void;
+  goToDate: (
+    dateLike: Dayjs | string | Date,
+    opts?: { select?: boolean; animated?: boolean },
+  ) => void;
 };
 
 type Cell = { date: Dayjs; inMonth: boolean };
@@ -50,7 +54,7 @@ const labels = ['일', '월', '화', '수', '목', '금', '토'];
 // baseOffset = 워프(teleport)로 좌표계를 얼마나 옮겼는지의 누적 값
 // effectiveOffset(보이는 달) = baseOffset + (visibleIndex - CENTER)
 
-const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
+const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
   ({ initialDate, onMonthChange, onSelectDate }, ref) => {
     const { width } = useWindowDimensions();
 
@@ -307,16 +311,39 @@ const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
         // 선택까지 맞추고 싶으면
         if (select) setSelected(todayStart);
       },
+      goToDate(dateLike, opts) {
+        const d = dayjs(dateLike);
+        const targetMonth = d.startOf('month');
+        const targetOffset = targetMonth.diff(anchorRef.current, 'month');
+
+        const idx = targetOffset - baseOffsetRef.current + CENTER;
+        const animated = opts?.animated ?? true;
+
+        const finalize = () => {
+          if (opts?.select !== false) setSelected(d.startOf('day'));
+        };
+
+        if (idx >= 0 && idx < WINDOW) {
+          listRef.current?.scrollToIndex({ index: idx, animated });
+          finalize();
+        } else {
+          teleportingRef.current = true;
+          baseOffsetRef.current = targetOffset;
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({ index: CENTER, animated: false });
+            const mm = monthFromIndex(CENTER);
+            setVisibleMonth(mm);
+            onMonthChange?.(mm);
+            lastIndexRef.current = CENTER;
+            teleportingRef.current = false;
+            finalize();
+          });
+        }
+      },
     }));
 
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerText}>
-            {visibleMonth.format('YYYY년 MM월')}
-          </Text>
-        </View>
-
         <FlatList
           ref={listRef}
           data={DATA}
@@ -338,37 +365,65 @@ const SwipeCalendarInfinite = forwardRef<SwipeCalendarHandle, Props>(
     );
   },
 );
-SwipeCalendarInfinite.displayName = 'SwipeCalendarInfinite';
-export default SwipeCalendarInfinite;
+SwipeMonthCalendarInfinite.displayName = 'SwipeMonthCalendarInfinite';
+export default SwipeMonthCalendarInfinite;
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
   headerText: { fontSize: 20, fontWeight: '700' },
 
-  monthContainer: { paddingHorizontal: SIDE_PAD, paddingBottom: 12 },
+  monthContainer: {
+    paddingHorizontal: SIDE_PAD,
+    paddingVertical: 24,
+  },
   monthTitle: {
     textAlign: 'center',
     fontSize: 18,
     fontWeight: '600',
-    marginVertical: 8,
+    marginBottom: 32,
   },
 
-  weekHeader: { flexDirection: 'row', marginBottom: 6 },
-  weekday: { textAlign: 'center', fontSize: 12, fontWeight: '600' },
-  weekend: { color: '#c03' },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  weekHeader: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekday: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  weekend: {
+    color: '#c03',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
   cell: {
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    marginVertical: 2, // 가로 마진 금지
+    marginVertical: 2,
   },
-  cellToday: { borderWidth: 1, borderColor: '#888' },
-  cellSelected: { backgroundColor: '#222' },
-  cellText: { fontSize: 14 },
-  cellTextSelected: { color: 'white', fontWeight: '700' },
-  dimmedText: { color: '#aaa' },
+  cellToday: {
+    borderWidth: 1,
+    borderColor: '#888',
+  },
+  cellSelected: {
+    backgroundColor: '#222',
+  },
+  cellText: {
+    fontSize: 14,
+  },
+  cellTextSelected: {
+    color: 'white',
+    fontWeight: '700',
+  },
+  dimmedText: {
+    color: '#aaa',
+  },
 });

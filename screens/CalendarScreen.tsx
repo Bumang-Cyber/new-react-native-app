@@ -2,8 +2,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
-import SwipeCalendarInfinite from '../components/screens/CalendarScreen/SwipeCalendarInfinite'; // 경로에 맞게 수정
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CollapsibleCalendarTabs from '../components/screens/CalendarScreen/CollapsibleCalendarTabs';
 
 type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 
@@ -47,66 +47,103 @@ export default function CalendarPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 상단 상태 표시(선택 날짜/현재 월) */}
-      <View style={styles.topBar}>
-        <Text style={styles.monthText}>
-          {currentMonth.format('YYYY년 MM월')}
-        </Text>
-        <Text style={styles.selectedText}>
-          선택: {selectedDate.format('YYYY-MM-DD (ddd)')}
-        </Text>
-      </View>
-
-      {/* 캘린더 */}
-      <SwipeCalendarInfinite
-        initialDate={initialRef.current}
-        onMonthChange={m => setCurrentMonth(m.startOf('month'))}
-        onSelectDate={d => setSelectedDate(d)} // <- 선택만 갱신
-      />
-
-      {/* 선택 날짜의 일정 리스트 */}
-      <View style={styles.listHeader}>
-        <Text style={styles.listHeaderText}>
-          일정{' '}
-          {eventsForSelected.length > 0 ? `(${eventsForSelected.length})` : ''}
-        </Text>
-      </View>
-
-      <FlatList
-        data={eventsForSelected}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.contentContainer}
-        renderItem={({ item }) => (
-          <View style={styles.eventCard}>
-            <Text style={styles.eventTitle}>{item.title}</Text>
-            {item.time ? (
-              <Text style={styles.eventTime}>{item.time}</Text>
-            ) : null}
+      <CollapsibleCalendarTabs
+        selected={selectedDate}
+        onSelectDate={setSelectedDate}
+        renderDiet={() => (
+          <View style={{ flex: 1 }}>
+            <View style={styles.workHeader}>
+              <Text style={styles.workHeaderText}>일정</Text>
+            </View>
+            <FlatList
+              style={{ flex: 1 }}
+              data={eventsForSelected}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.contentContainer}
+              renderItem={({ item }) => (
+                <View style={styles.eventCard}>
+                  <Text style={styles.eventTitle}>{item.title}</Text>
+                  {item.time ? (
+                    <Text style={styles.eventTime}>{item.time}</Text>
+                  ) : null}
+                </View>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  선택한 날짜에 일정이 없습니다.
+                </Text>
+              }
+            />
           </View>
         )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>선택한 날짜에 일정이 없습니다.</Text>
-        }
+        renderWorkout={() => <Text>운동 탭</Text>}
+        renderBody={() => <Text>신체 탭</Text>}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topBar: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  monthText: { fontSize: 20, fontWeight: '700' },
-  selectedText: { marginTop: 4, fontSize: 14, color: '#666' },
-  listHeader: { paddingHorizontal: 20, paddingVertical: 8 },
-  listHeaderText: { fontSize: 16, fontWeight: '700' },
+  container: {
+    flex: 1,
+  },
+  workContainer: {
+    flex: 1,
+  },
+  workHeader: {
+    height: 40,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+  },
+  workHeaderText: {
+    fontSize: 16,
+    fontWeight: 700,
+  },
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  monthText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  selectedText: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#666',
+  },
+  listHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    // marginTop: 60,
+  },
+  listHeaderText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   eventCard: {
     padding: 14,
     borderRadius: 12,
     backgroundColor: '#f2f2f2',
     marginBottom: 10,
   },
-  contentContainer: { paddingHorizontal: 20, paddingBottom: 24 },
-  eventTitle: { fontSize: 15, fontWeight: '600' },
-  eventTime: { marginTop: 4, fontSize: 13, color: '#666' },
-  emptyText: { textAlign: 'center', color: '#999', paddingVertical: 12 },
+  contentContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  eventTime: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#666',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    paddingVertical: 12,
+  },
 });
