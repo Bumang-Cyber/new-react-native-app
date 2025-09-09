@@ -12,7 +12,6 @@ import {
   Pressable,
   StyleSheet,
   ListRenderItemInfo,
-  useWindowDimensions,
   ViewToken,
 } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
@@ -26,6 +25,7 @@ type Props = {
   onMonthChange?: (m: Dayjs) => void;
   onSelectDate?: (d: Dayjs) => void;
 
+  selected: Dayjs;
   gridWidth: number;
   cellWidth: number;
   width: number;
@@ -58,6 +58,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
   (
     {
       initialDate,
+      selected,
       onMonthChange,
       onSelectDate,
 
@@ -75,9 +76,9 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     const lastIndexRef = useRef<number>(CENTER);
 
     // 선택 날짜
-    const [selected, setSelected] = useState<Dayjs | null>(
-      dayjs(initialDate ?? anchor).startOf('day'),
-    );
+    // const [selected, setSelected] = useState<Dayjs | null>(
+    //   dayjs(initialDate ?? anchor).startOf('day'),
+    // );
 
     // 기준 오프셋(월) 누적 값
     const baseOffsetRef = useRef(0);
@@ -135,7 +136,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
                     ]}
                     onPress={() => {
                       const d = cell.date.startOf('day');
-                      setSelected(d);
                       onSelectDate?.(d);
                     }}
                   >
@@ -286,7 +286,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         }
 
         // 선택까지 맞추고 싶으면
-        if (select) setSelected(todayStart);
+        if (select && onSelectDate) onSelectDate(todayStart);
       },
       goToDate(dateLike, opts) {
         const d = dayjs(dateLike);
@@ -297,7 +297,8 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         const animated = opts?.animated ?? true;
 
         const finalize = () => {
-          if (opts?.select !== false) setSelected(d.startOf('day'));
+          if (opts?.select !== false && onSelectDate)
+            onSelectDate(d.startOf('day'));
         };
 
         if (idx >= 0 && idx < WINDOW) {

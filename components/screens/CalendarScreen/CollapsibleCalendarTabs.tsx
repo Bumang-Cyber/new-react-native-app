@@ -1,5 +1,5 @@
 // CollapsibleCalendarTabs.tsx
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -105,6 +105,7 @@ export default function CollapsibleCalendarTabs({
         snapToWeek ? 1 : 0,
         { damping: 18, stiffness: 180 },
         () => {
+          // 제스처 전환 후에 실행될 JS Thread 콜백
           runOnJS(setMode)(snapToWeek ? 'week' : 'month');
         },
       );
@@ -145,6 +146,7 @@ export default function CollapsibleCalendarTabs({
         >
           <SwipeMonthCalendarInfinite
             ref={monthRef}
+            selected={selected}
             initialDate={selected}
             onMonthChange={m => setVisibleMonth(m.startOf('month'))}
             onSelectDate={onSelectDate}

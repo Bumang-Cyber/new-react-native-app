@@ -29,15 +29,9 @@ const SAMPLE_EVENTS: Event[] = [
 ];
 
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(
-    dayjs().startOf('month'),
-  );
   const [selectedDate, setSelectedDate] = useState<Dayjs>(
     dayjs().startOf('day'),
   );
-
-  // 최초 1회만 anchor로 쓸 초기 날짜를 고정
-  const initialRef = useRef(dayjs().startOf('day'));
 
   // 선택된 날짜의 이벤트 필터
   const eventsForSelected = useMemo(() => {
