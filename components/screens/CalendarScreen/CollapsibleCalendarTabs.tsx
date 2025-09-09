@@ -19,7 +19,7 @@ import SwipeMonthCalendarInfinite, {
 import SwipeWeekInfinite, {
   SwipeWeekHandle,
 } from './SwipeWeekCalendarInfinite';
-import { scheduleOnRN } from 'react-native-worklets';
+import { SIDE_PAD } from '../../../constants/layout';
 
 type Props = {
   selected: Dayjs;
@@ -29,7 +29,7 @@ type Props = {
   renderBody: () => React.ReactNode; // 신체 탭 콘텐츠
 };
 
-const SIDE_PAD = 12;
+const labels = ['일', '월', '화', '수', '목', '금', '토'];
 
 const startOfWeek = (d: Dayjs, weekStartsOn: 0 | 1 = 0) => {
   const w = d.day();
@@ -44,21 +44,21 @@ export default function CollapsibleCalendarTabs({
   renderWorkout,
   renderBody,
 }: Props) {
-  const calRef = useRef<SwipeMonthCalendarHandle>(null);
+  // ---------------------- Refs ----------------------
+  const monthRef = useRef<SwipeMonthCalendarHandle>(null);
   const weekRef = useRef<SwipeWeekHandle>(null);
-  const { width } = useWindowDimensions();
 
-  // 레이아웃 값
+  // ---------------------- 레이아웃 변수 ----------------------
+  const { width } = useWindowDimensions();
   const contentWidth = Math.floor(width - SIDE_PAD * 2);
+  const cellWidth = Math.floor(contentWidth / 7);
+  const gridWidth = cellWidth * 7;
   const cell = Math.floor(contentWidth / 7);
-  const monthTitleH = 32; // month일때 타이틀 높이
-  const weekdayH = 22; // 요일 헤더
-  const MONTH_H = monthTitleH + weekdayH + cell * 6 + 16;
-  const WEEK_H = monthTitleH + weekdayH + cell * 1 + 16;
+
+  const MONTH_H = cell * 6;
+  const WEEK_H = cell * 1;
   const DELTA = MONTH_H - WEEK_H;
 
-  // 진행도(0=월, 1=주) + 모드(state는 포인터 이벤트 제어용)
-  const progress = useSharedValue(0);
   const [mode, setMode] = useState<'month' | 'week'>('month');
 
   // 보이는 달/주(전환 동기화 규칙용)
@@ -69,6 +69,14 @@ export default function CollapsibleCalendarTabs({
     startOfWeek(selected),
   );
 
+  const titleByCalendarMode =
+    mode === 'month'
+      ? visibleMonth.format('YYYY년 MM월')
+      : visibleWeekStart.format('YYYY년 MM월');
+
+  // ---------------------- 애니메이션 ----------------------
+  // 진행도(0=월, 1=주) + 모드(state는 포인터 이벤트 제어용)
+  const progress = useSharedValue(0);
   // 캘린더 높이/페이드
   const calStyle = useAnimatedStyle(() => ({
     height: interpolate(
@@ -80,9 +88,9 @@ export default function CollapsibleCalendarTabs({
   }));
   const monthFade = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
   const weekFade = useAnimatedStyle(() => ({ opacity: progress.value }));
-
   const start = useSharedValue(0);
   const SAFE_DELTA = Math.max(1, DELTA); // 2) 0 방지
+
   const pan = Gesture.Pan()
     .onBegin(() => {
       start.value = progress.value; // 시작 시점 진행도 스냅샷
@@ -104,27 +112,50 @@ export default function CollapsibleCalendarTabs({
     .activeOffsetX([-15, 15]) // 수평 브러시 스와이프와 충돌 줄이기
     .minDistance(3);
 
-  // 드래그 핸들
-  // const onGestureEvent = (evt: any) => {
-  //   const { translationY, velocityY, state } = evt.nativeEvent ?? evt; // GH v2/v3 호환용
-  // };
-
   return (
     <View style={styles.container}>
+      {/* 월 표기 */}
+      <Text style={styles.monthTitle}>{titleByCalendarMode}</Text>
+
+      {/* 요일 헤더: 픽셀 고정 */}
+      <View style={[styles.weekHeader, { width: gridWidth }]}>
+        {labels.map((l, i) => {
+          const isWeekend = i === 0 || i === 6;
+          return (
+            <Text
+              key={i}
+              style={[
+                styles.weekday,
+                { width: cellWidth },
+                isWeekend && styles.weekend,
+              ]}
+            >
+              {l}
+            </Text>
+          );
+        })}
+      </View>
+
       {/* 캘린더 영역 (월/주 겹침) */}
       <Animated.View style={[styles.calendar, calStyle]}>
+        {/* 월간 */}
         <Animated.View
           style={[styles.fill, monthFade]}
           pointerEvents={mode === 'month' ? 'auto' : 'none'}
         >
           <SwipeMonthCalendarInfinite
-            ref={calRef}
+            ref={monthRef}
             initialDate={selected}
             onMonthChange={m => setVisibleMonth(m.startOf('month'))}
             onSelectDate={onSelectDate}
+            // 레이아웃 props
+            gridWidth={gridWidth}
+            cellWidth={cellWidth}
+            width={width}
           />
         </Animated.View>
 
+        {/* 주간 */}
         <Animated.View
           style={[styles.fill, weekFade]}
           pointerEvents={mode === 'week' ? 'auto' : 'none'}
@@ -134,6 +165,10 @@ export default function CollapsibleCalendarTabs({
             selected={selected}
             onSelectDate={onSelectDate}
             onWeekChange={ws => setVisibleWeekStart(ws)}
+            // 레이아웃 props
+            gridWidth={gridWidth}
+            cellWidth={cellWidth}
+            width={width}
           />
         </Animated.View>
       </Animated.View>
@@ -165,6 +200,28 @@ export default function CollapsibleCalendarTabs({
 }
 
 const styles = StyleSheet.create({
+  monthTitle: {
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 32,
+  },
+
+  weekHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingHorizontal: SIDE_PAD,
+  },
+  weekday: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  weekend: {
+    color: '#c03',
+  },
+
   container: {
     flex: 1,
   },

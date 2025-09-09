@@ -86,6 +86,7 @@ export default function CalendarPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f9f9f9',
   },
   workContainer: {
     flex: 1,

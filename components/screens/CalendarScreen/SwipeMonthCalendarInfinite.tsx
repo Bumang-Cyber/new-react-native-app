@@ -25,6 +25,10 @@ type Props = {
   initialDate?: Dayjs | string | Date;
   onMonthChange?: (m: Dayjs) => void;
   onSelectDate?: (d: Dayjs) => void;
+
+  gridWidth: number;
+  cellWidth: number;
+  width: number;
 };
 
 export type SwipeMonthCalendarHandle = {
@@ -47,28 +51,27 @@ const CENTER = Math.floor(WINDOW / 2);
 const PRELOAD_THRESHOLD = 4; // 가장자리 감지 임계치
 
 // ── 레이아웃 ─────────────────────────────────────────────────────
-const SIDE_PAD = 12; // styles.monthContainer.paddingHorizontal 과 동일해야 함
+const SIDE_PAD = 12; // styles.page.paddingHorizontal 과 동일해야 함
 const DATA = Array.from({ length: WINDOW }, (_, i) => i);
-const labels = ['일', '월', '화', '수', '목', '금', '토'];
-
-// baseOffset = 워프(teleport)로 좌표계를 얼마나 옮겼는지의 누적 값
-// effectiveOffset(보이는 달) = baseOffset + (visibleIndex - CENTER)
 
 const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
-  ({ initialDate, onMonthChange, onSelectDate }, ref) => {
-    const { width } = useWindowDimensions();
+  (
+    {
+      initialDate,
+      onMonthChange,
+      onSelectDate,
 
-    // 1주 7칸 정확히 표시 (픽셀 고정)
-    const contentWidth = Math.floor(width - SIDE_PAD * 2);
-    const cellWidth = Math.floor(contentWidth / 7);
-    const gridWidth = cellWidth * 7;
-
+      gridWidth,
+      cellWidth,
+      width,
+    },
+    ref,
+  ) => {
     // anchor는 최초 1회 고정
     const anchorRef = useRef(dayjs(initialDate ?? new Date()).startOf('month'));
     const anchor = anchorRef.current;
 
     // 현재 보이는 인덱스/월
-    const [visibleMonth, setVisibleMonth] = useState<Dayjs>(anchor);
     const lastIndexRef = useRef<number>(CENTER);
 
     // 선택 날짜
@@ -112,28 +115,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         const cells = buildMonthMatrix(month);
 
         return (
-          <View style={[styles.monthContainer, { width }]}>
-            <Text style={styles.monthTitle}>{month.format('YYYY년 MM월')}</Text>
-
-            {/* 요일 헤더: 픽셀 고정 */}
-            <View style={[styles.weekHeader, { width: gridWidth }]}>
-              {labels.map((l, i) => {
-                const isWeekend = i === 0 || i === 6;
-                return (
-                  <Text
-                    key={i}
-                    style={[
-                      styles.weekday,
-                      { width: cellWidth },
-                      isWeekend && styles.weekend,
-                    ]}
-                  >
-                    {l}
-                  </Text>
-                );
-              })}
-            </View>
-
+          <View style={[styles.page, { width }]}>
             {/* 날짜 그리드: 픽셀 고정 */}
             <View style={[styles.grid, { width: gridWidth }]}>
               {cells.map(cell => {
@@ -147,7 +129,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
                     key={key}
                     style={[
                       styles.cell,
-                      { width: cellWidth },
+                      { width: cellWidth, height: cellWidth },
                       isSelected && styles.cellSelected,
                       isToday && styles.cellToday,
                     ]}
@@ -212,7 +194,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         lastIndexRef.current = i;
 
         const month = monthFromIndex(i);
-        setVisibleMonth(month);
         onMonthChange?.(month);
 
         // 가장자리에 가까워지면 중앙 쪽으로 '워프'
@@ -227,7 +208,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
             });
             // 워프 후 보이는 월 재동기화
             const mm = monthFromIndex(nextIndex);
-            setVisibleMonth(mm);
             onMonthChange?.(mm);
             lastIndexRef.current = nextIndex;
             teleportingRef.current = false;
@@ -242,7 +222,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
               animated: false,
             });
             const mm = monthFromIndex(nextIndex);
-            setVisibleMonth(mm);
             onMonthChange?.(mm);
             lastIndexRef.current = nextIndex;
             teleportingRef.current = false;
@@ -272,7 +251,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
           requestAnimationFrame(() => {
             listRef.current?.scrollToIndex({ index: CENTER, animated: false });
             const mm = monthFromIndex(CENTER);
-            setVisibleMonth(mm);
             onMonthChange?.(mm);
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
@@ -301,7 +279,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
               baseOffsetRef.current + (CENTER - CENTER),
               'month',
             );
-            setVisibleMonth(mm);
             onMonthChange?.(mm);
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
@@ -332,7 +309,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
           requestAnimationFrame(() => {
             listRef.current?.scrollToIndex({ index: CENTER, animated: false });
             const mm = monthFromIndex(CENTER);
-            setVisibleMonth(mm);
             onMonthChange?.(mm);
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
@@ -343,25 +319,23 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     }));
 
     return (
-      <View style={styles.container}>
-        <FlatList
-          ref={listRef}
-          data={DATA}
-          horizontal
-          pagingEnabled
-          keyExtractor={i => String(i)}
-          renderItem={renderItem}
-          initialScrollIndex={CENTER} // 시작 인덱스
-          getItemLayout={getItemLayout}
-          onViewableItemsChanged={onViewableItemsChanged} // 보이는 아이템 바뀔때마다 호출 (onChange)
-          viewabilityConfig={{ itemVisiblePercentThreshold: 51 }} // 51퍼센트 이상 보여야 '보임'으로 간주.
-          showsHorizontalScrollIndicator={false} // 가로 스크롤바 가림
-          windowSize={3} // windowing 얼마나 하고 있을지
-          initialNumToRender={3} // 초기에 몇 개 렌더(빠른 첫 페인트)
-          maxToRenderPerBatch={3}
-          removeClippedSubviews
-        />
-      </View>
+      <FlatList
+        ref={listRef}
+        data={DATA}
+        horizontal
+        pagingEnabled
+        keyExtractor={i => String(i)}
+        renderItem={renderItem}
+        initialScrollIndex={CENTER} // 시작 인덱스
+        getItemLayout={getItemLayout}
+        onViewableItemsChanged={onViewableItemsChanged} // 보이는 아이템 바뀔때마다 호출 (onChange)
+        viewabilityConfig={{ itemVisiblePercentThreshold: 51 }} // 51퍼센트 이상 보여야 '보임'으로 간주.
+        showsHorizontalScrollIndicator={false} // 가로 스크롤바 가림
+        windowSize={3} // windowing 얼마나 하고 있을지
+        initialNumToRender={3} // 초기에 몇 개 렌더(빠른 첫 페인트)
+        maxToRenderPerBatch={3}
+        removeClippedSubviews
+      />
     );
   },
 );
@@ -369,34 +343,8 @@ SwipeMonthCalendarInfinite.displayName = 'SwipeMonthCalendarInfinite';
 export default SwipeMonthCalendarInfinite;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  headerText: { fontSize: 20, fontWeight: '700' },
-
-  monthContainer: {
+  page: {
     paddingHorizontal: SIDE_PAD,
-    paddingVertical: 24,
-  },
-  monthTitle: {
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 32,
-  },
-
-  weekHeader: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekday: {
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  weekend: {
-    color: '#c03',
   },
   grid: {
     flexDirection: 'row',
@@ -406,8 +354,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    marginVertical: 2,
+    borderRadius: 999,
   },
   cellToday: {
     borderWidth: 1,

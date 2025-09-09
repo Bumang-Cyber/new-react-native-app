@@ -13,11 +13,11 @@ import {
   Pressable,
   StyleSheet,
   ListRenderItemInfo,
-  useWindowDimensions,
   ViewToken,
 } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import isTodayPlugin from 'dayjs/plugin/isToday';
+import { SIDE_PAD } from '../../../constants/layout';
 dayjs.extend(isTodayPlugin);
 
 export type SwipeWeekHandle = {
@@ -32,15 +32,17 @@ type Props = {
   onSelectDate: (d: Dayjs) => void;
   onWeekChange?: (weekStart: Dayjs) => void;
   weekStartsOn?: 0 | 1; // 0=일 1=월
+
+  // 레이아웃 관련
+  gridWidth: number;
+  cellWidth: number;
+  width: number;
 };
 
 const WEEK_WINDOW = 120;
 const WEEK_CENTER = Math.floor(WEEK_WINDOW / 2);
 const WEEK_SHIFT = WEEK_CENTER;
 const PRELOAD = 4;
-
-const SIDE_PAD = 12;
-const labels = ['일', '월', '화', '수', '목', '금', '토'];
 
 const startOfWeek = (d: Dayjs, weekStartsOn: 0 | 1 = 0) => {
   const w = d.day(); // 0..6
@@ -49,14 +51,17 @@ const startOfWeek = (d: Dayjs, weekStartsOn: 0 | 1 = 0) => {
 };
 
 const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
-  { selected, onSelectDate, onWeekChange, weekStartsOn = 0 },
+  {
+    selected,
+    onSelectDate,
+    onWeekChange,
+    weekStartsOn = 0,
+    gridWidth,
+    cellWidth,
+    width,
+  },
   ref,
 ) {
-  const { width } = useWindowDimensions();
-  const contentWidth = Math.floor(width - SIDE_PAD * 2);
-  const cellWidth = Math.floor(contentWidth / 7);
-  const gridWidth = cellWidth * 7;
-
   const data = useMemo(
     () => Array.from({ length: WEEK_WINDOW }, (_, i) => i),
     [],
@@ -77,21 +82,6 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
 
       return (
         <View style={[styles.page, { width }]}>
-          <Text style={styles.title}>{wkStart.format('YYYY년 MM월')}</Text>
-          <View style={[styles.weekHeader, { width: gridWidth }]}>
-            {labels.map((l, i) => (
-              <Text
-                key={i}
-                style={[
-                  styles.weekday,
-                  { width: cellWidth },
-                  (i === 0 || i === 6) && styles.weekend,
-                ]}
-              >
-                {l}
-              </Text>
-            ))}
-          </View>
           <View style={[styles.grid, { width: gridWidth }]}>
             {days.map(d => {
               const key = d.format('YYYY-MM-DD');
@@ -102,7 +92,7 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
                   key={key}
                   style={[
                     styles.cell,
-                    { width: cellWidth },
+                    { width: cellWidth, height: cellWidth },
                     isSel && styles.cellSelected,
                     isToday && styles.cellToday,
                   ]}
@@ -120,7 +110,7 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
         </View>
       );
     },
-    [cellWidth, gridWidth, selected, onSelectDate, weekFromIndex, width],
+    [selected, onSelectDate, weekFromIndex],
   );
 
   const getItemLayout = useCallback(
@@ -227,25 +217,6 @@ export default SwipeWeekInfinite;
 const styles = StyleSheet.create({
   page: {
     paddingHorizontal: SIDE_PAD,
-    paddingVertical: 16,
-  },
-  title: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  weekHeader: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  weekday: {
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  weekend: {
-    color: '#c03',
   },
   grid: {
     flexDirection: 'row',
@@ -255,8 +226,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    marginVertical: 2,
+    borderRadius: 999,
   },
   cellToday: {
     borderWidth: 1,
