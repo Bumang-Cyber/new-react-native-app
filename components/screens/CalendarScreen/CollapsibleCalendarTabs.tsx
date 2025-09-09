@@ -69,11 +69,6 @@ export default function CollapsibleCalendarTabs({
     startOfWeek(selected),
   );
 
-  const titleByCalendarMode =
-    mode === 'month'
-      ? visibleMonth.format('YYYY년 MM월')
-      : visibleWeekStart.format('YYYY년 MM월');
-
   // ---------------------- 애니메이션 ----------------------
   // 진행도(0=월, 1=주) + 모드(state는 포인터 이벤트 제어용)
   const progress = useSharedValue(0);
@@ -116,7 +111,14 @@ export default function CollapsibleCalendarTabs({
   return (
     <View style={styles.container}>
       {/* 월 표기 */}
-      <Text style={styles.monthTitle}>{titleByCalendarMode}</Text>
+      <View style={styles.calendarTitle}>
+        <Animated.Text style={[styles.title, styles.absolute, weekFade]}>
+          {visibleWeekStart.format('YYYY년 MM월')}
+        </Animated.Text>
+        <Animated.Text style={[styles.title, styles.absolute, monthFade]}>
+          {visibleMonth.format('YYYY년 MM월')}
+        </Animated.Text>
+      </View>
 
       {/* 요일 헤더: 픽셀 고정 */}
       <View style={[styles.weekHeader, { width: gridWidth }]}>
@@ -202,7 +204,17 @@ export default function CollapsibleCalendarTabs({
 }
 
 const styles = StyleSheet.create({
-  monthTitle: {
+  calendarTitle: {
+    position: 'relative',
+    width: '100%',
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  absolute: {
+    position: 'absolute',
+  },
+  title: {
     textAlign: 'center',
     fontSize: 18,
     fontWeight: '600',
