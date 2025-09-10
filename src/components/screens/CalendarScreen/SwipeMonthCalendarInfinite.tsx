@@ -20,7 +20,6 @@ dayjs.extend(isoWeek);
 dayjs.extend(isTodayPlugin);
 
 type Props = {
-  initialDate?: Dayjs | string | Date;
   onMonthChange?: (m: Dayjs) => void;
   onSelectDate?: (d: Dayjs) => void;
 
@@ -56,7 +55,6 @@ const DATA = Array.from({ length: WINDOW }, (_, i) => i);
 const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
   (
     {
-      initialDate,
       selected,
       onMonthChange,
       onSelectDate,
@@ -68,7 +66,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     ref,
   ) => {
     // anchor는 최초 1회 고정
-    const anchorRef = useRef(dayjs(initialDate ?? new Date()).startOf('month'));
+    const anchorRef = useRef(dayjs(selected ?? new Date()).startOf('month'));
     const anchor = anchorRef.current;
 
     // 현재 보이는 인덱스/월
@@ -76,7 +74,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
 
     // 선택 날짜
     // const [selected, setSelected] = useState<Dayjs | null>(
-    //   dayjs(initialDate ?? anchor).startOf('day'),
+    //   dayjs( ?? anchor).startOf('day'),
     // );
 
     // 기준 오프셋(월) 누적 값
@@ -231,10 +229,12 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
 
     useImperativeHandle(ref, () => ({
       goPrevMonth() {
+        if (teleportingRef.current) return;
         const idx = Math.max(0, lastIndexRef.current - 1);
         listRef.current?.scrollToIndex({ index: idx, animated: true });
       },
       goNextMonth() {
+        if (teleportingRef.current) return;
         const idx = Math.min(WINDOW - 1, lastIndexRef.current + 1);
         listRef.current?.scrollToIndex({ index: idx, animated: true });
       },

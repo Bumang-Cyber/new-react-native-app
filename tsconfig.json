@@ -3,9 +3,13 @@
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["**/node_modules", "**/Pods"],
   "compilerOptions": {
-    "baseUrl": ".", // ./ 제거
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"] // paths 추가 필수!
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@screens/*": ["src/screens/*"],
+      "@lib/*": ["src/lib/*"],
+      "@assets/*": ["src/assets/*"]
     }
   }
 }
