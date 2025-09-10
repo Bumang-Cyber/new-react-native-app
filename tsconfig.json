@@ -1,5 +1,11 @@
 {
   "extends": "@react-native/typescript-config",
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["**/node_modules", "**/Pods"]
+  "exclude": ["**/node_modules", "**/Pods"],
+  "compilerOptions": {
+    "baseUrl": ".", // ./ 제거
+    "paths": {
+      "@/*": ["src/*"] // paths 추가 필수!
+    }
+  }
 }

@@ -1,5 +1,5 @@
 // CalendarPage.tsx
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,12 +45,12 @@ export default function CalendarPage() {
         selected={selectedDate}
         onSelectDate={setSelectedDate}
         renderDiet={() => (
-          <View style={{ flex: 1 }}>
+          <View style={styles.calenderContainer}>
             <View style={styles.workHeader}>
               <Text style={styles.workHeaderText}>일정</Text>
             </View>
             <FlatList
-              style={{ flex: 1 }}
+              style={styles.calenderContainer}
               data={eventsForSelected}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.contentContainer}
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9f9f9',
   },
-  workContainer: {
+  calenderContainer: {
     flex: 1,
   },
   workHeader: {
