@@ -1,5 +1,5 @@
 // CalendarPage.tsx
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,15 +29,9 @@ const SAMPLE_EVENTS: Event[] = [
 ];
 
 export default function CalendarPage() {
-  const [currentMonth, setCurrentMonth] = useState<Dayjs>(
-    dayjs().startOf('month'),
-  );
   const [selectedDate, setSelectedDate] = useState<Dayjs>(
     dayjs().startOf('day'),
   );
-
-  // 최초 1회만 anchor로 쓸 초기 날짜를 고정
-  const initialRef = useRef(dayjs().startOf('day'));
 
   // 선택된 날짜의 이벤트 필터
   const eventsForSelected = useMemo(() => {
@@ -51,12 +45,12 @@ export default function CalendarPage() {
         selected={selectedDate}
         onSelectDate={setSelectedDate}
         renderDiet={() => (
-          <View style={{ flex: 1 }}>
+          <View style={styles.calenderContainer}>
             <View style={styles.workHeader}>
               <Text style={styles.workHeaderText}>일정</Text>
             </View>
             <FlatList
-              style={{ flex: 1 }}
+              style={styles.calenderContainer}
               data={eventsForSelected}
               keyExtractor={item => item.id}
               contentContainerStyle={styles.contentContainer}
@@ -88,7 +82,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9f9f9',
   },
-  workContainer: {
+  calenderContainer: {
     flex: 1,
   },
   workHeader: {

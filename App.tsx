@@ -6,7 +6,7 @@ import {
   SafeAreaProvider,
   // useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import TabNavigator from './navigation/TabNavigator';
+import TabNavigator from './src/navigation/TabNavigator';
 
 function App() {
   // const isDarkMode = useColorScheme() === 'dark';

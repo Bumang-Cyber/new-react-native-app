@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { isSameDay, isToday, isCurrentMonth } from '../../utils/dateUtils';
-import { colors, typography, spacing } from '../../src/constants/theme';
+import { colors, typography, spacing } from '../../constants/theme';
 
 interface MonthCalendarProps {
   days: Date[];
