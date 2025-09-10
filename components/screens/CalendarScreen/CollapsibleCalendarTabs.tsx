@@ -50,9 +50,9 @@ export default function CollapsibleCalendarTabs({
   renderWorkout,
   renderBody,
 }: Props) {
-  // ---------------------- Refs ----------------------
-  const monthRef = useRef<SwipeMonthCalendarHandle>(null);
-  const weekRef = useRef<SwipeWeekHandle>(null);
+  // ---------------------- Calendar Refs ----------------------
+  const monthCalendarRef = useRef<SwipeMonthCalendarHandle>(null);
+  const weekCalendarRef = useRef<SwipeWeekHandle>(null);
 
   // ---------------------- 레이아웃 변수 ----------------------
   const { width } = useWindowDimensions();
@@ -65,26 +65,29 @@ export default function CollapsibleCalendarTabs({
   const WEEK_H = cell * 1;
   const DELTA = MONTH_H - WEEK_H;
 
-  const [mode, setMode] = useState<'month' | 'week'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
-  // 보이는 달/주(전환 동기화 규칙용)
+  // 화면의 단 하나의 기준 날짜
   const [cursorDate, setCursorDate] = useState<Dayjs>(selected);
+  // focusDate가 속한 월/주의 1일
+  const monthStart = useMemo(() => cursorDate.startOf('month'), [cursorDate]);
+  const weekStart = useMemo(() => startOfWeek(cursorDate), [cursorDate]);
 
-  const monthAnchor = useMemo(() => cursorDate.startOf('month'), [cursorDate]);
-  const weekAnchor = useMemo(() => startOfWeek(cursorDate), [cursorDate]);
-
+  // 스와이핑으로 viewMode 전환 시 시작했던 방향을 정적으로 기억하는 ref
   const syncingRef = useRef<null | 'month' | 'week'>(null);
-  // 각 뷰가 실제로 보여주고 있는 앵커(중복 워프 방지)
-  const visibleMonthRef = useRef<Dayjs>(monthAnchor);
-  const visibleWeekRef = useRef<Dayjs>(weekAnchor);
 
-  const weekdayPrefRef = useRef<number>(selected.day());
+  // 월간 뷰가 실제로 보여주는 달 시작
+  const monthViewportStartRef = useRef<Dayjs>(monthStart);
+  // 주간 뷰가 실제로 보여주는 주 시작
+  const weekViewportStartRef = useRef<Dayjs>(weekStart);
+
+  const preferredWeekdayRef = useRef<number>(selected.day());
 
   // 날짜 탭 핸들러: 선택 + 기준 동기화 (+ 요일 선호 갱신)
   const handleSelectDate = (d: Dayjs) => {
     onSelectDate(d);
     setCursorDate(prev => (sameDay(prev, d) ? prev : d));
-    weekdayPrefRef.current = d.day();
+    preferredWeekdayRef.current = d.day();
   };
 
   const sameDay = (a: Dayjs, b: Dayjs) => a.isSame(b, 'day');
@@ -93,7 +96,7 @@ export default function CollapsibleCalendarTabs({
   // 월/주 좌우 스와이프 → cursorDate만 갱신
   const handleMonthChange = (m: Dayjs) => {
     const mStart = m.startOf('month');
-    visibleMonthRef.current = mStart;
+    monthViewportStartRef.current = mStart;
 
     if (syncingRef.current === 'month') return; // 프로그램 워프 중이면 무시
 
@@ -105,26 +108,26 @@ export default function CollapsibleCalendarTabs({
       // 주 뷰를 같은 컨텍스트로 미리 워프(필요할 때만)
       const targetWeek = startOfWeek(next);
       if (
-        !visibleWeekRef.current ||
-        !visibleWeekRef.current.isSame(targetWeek, 'day')
+        !weekViewportStartRef.current ||
+        !weekViewportStartRef.current.isSame(targetWeek, 'day')
       ) {
         syncingRef.current = 'week';
-        weekRef.current?.goToWeek?.(targetWeek, {
+        weekCalendarRef.current?.goToWeek?.(targetWeek, {
           animated: false,
           select: false,
         });
-        visibleWeekRef.current = targetWeek;
+        weekViewportStartRef.current = targetWeek;
         syncingRef.current = null;
       }
       return next;
     });
   };
   const handleWeekChange = (ws: Dayjs) => {
-    visibleWeekRef.current = ws;
+    weekViewportStartRef.current = ws;
 
     if (syncingRef.current === 'week') return; // 프로그램 워프 중이면 무시
 
-    const pref = (weekdayPrefRef.current ?? 0) % 7;
+    const pref = (preferredWeekdayRef.current ?? 0) % 7;
     const next = ws.add(pref, 'day');
 
     setCursorDate(prev => (sameDay(prev, next) ? prev : next));
@@ -132,48 +135,51 @@ export default function CollapsibleCalendarTabs({
     // 월 뷰도 같은 컨텍스트로 미리 워프(필요할 때만)
     const targetMonth = next.startOf('month');
     if (
-      !visibleMonthRef.current ||
-      !sameMonth(visibleMonthRef.current, targetMonth)
+      !monthViewportStartRef.current ||
+      !sameMonth(monthViewportStartRef.current, targetMonth)
     ) {
       syncingRef.current = 'month';
-      monthRef.current?.goToDate?.(next, { animated: false, select: false });
-      visibleMonthRef.current = targetMonth;
+      monthCalendarRef.current?.goToDate?.(next, {
+        animated: false,
+        select: false,
+      });
+      monthViewportStartRef.current = targetMonth;
       syncingRef.current = null;
     }
   };
 
   useEffect(() => {
-    if (mode === 'month') {
+    if (viewMode === 'month') {
       const targetMonth = cursorDate.startOf('month');
       if (
-        !visibleMonthRef.current ||
-        !sameMonth(visibleMonthRef.current, targetMonth)
+        !monthViewportStartRef.current ||
+        !sameMonth(monthViewportStartRef.current, targetMonth)
       ) {
         syncingRef.current = 'month';
-        monthRef.current?.goToDate?.(cursorDate, {
+        monthCalendarRef.current?.goToDate?.(cursorDate, {
           animated: false,
           select: false,
         });
-        visibleMonthRef.current = targetMonth;
+        monthViewportStartRef.current = targetMonth;
         syncingRef.current = null;
       }
     } else {
       const targetWeek = startOfWeek(cursorDate);
       if (
-        !visibleWeekRef.current ||
-        !visibleWeekRef.current.isSame(targetWeek, 'day')
+        !weekViewportStartRef.current ||
+        !weekViewportStartRef.current.isSame(targetWeek, 'day')
       ) {
         syncingRef.current = 'week';
-        weekRef.current?.goToWeek?.(targetWeek, {
+        weekCalendarRef.current?.goToWeek?.(targetWeek, {
           animated: false,
           select: false,
         });
-        visibleWeekRef.current = targetWeek;
+        weekViewportStartRef.current = targetWeek;
         syncingRef.current = null;
       }
     }
     // cursorDate만 의존: 내부 visible*Ref 비교로 중복 호출 방지
-  }, [mode, cursorDate]);
+  }, [viewMode, cursorDate]);
 
   // ---------------------- 애니메이션 ----------------------
   // 진행도(0=월, 1=주) + 모드(state는 포인터 이벤트 제어용)
@@ -207,7 +213,7 @@ export default function CollapsibleCalendarTabs({
       'worklet';
       // 임계만 사용(간단/안정). 필요하면 velocity 가중 추가 가능
       const toWeek = progress.value > 0.5 || -e.velocityY > 800;
-      runOnJS(setMode)(toWeek ? 'week' : 'month'); // 모드만 즉시
+      runOnJS(setViewMode)(toWeek ? 'week' : 'month'); // 모드만 즉시
       progress.value = withSpring(toWeek ? 1 : 0, {
         damping: 18,
         stiffness: 180,
@@ -220,11 +226,11 @@ export default function CollapsibleCalendarTabs({
     <View style={styles.container}>
       {/* 월 표기 */}
       <View style={styles.calendarTitle}>
-        <Animated.Text style={[styles.title, styles.absolute, weekFade]}>
-          {weekAnchor.format('YYYY년 MM월')}
-        </Animated.Text>
         <Animated.Text style={[styles.title, styles.absolute, monthFade]}>
-          {monthAnchor.format('YYYY년 MM월')}
+          {monthStart.format('YYYY년 MM월')}
+        </Animated.Text>
+        <Animated.Text style={[styles.title, styles.absolute, weekFade]}>
+          {weekStart.format('YYYY년 MM월')}
         </Animated.Text>
       </View>
 
@@ -252,10 +258,10 @@ export default function CollapsibleCalendarTabs({
         {/* 월간 */}
         <Animated.View
           style={[styles.fill, monthFade]}
-          pointerEvents={mode === 'month' ? 'auto' : 'none'}
+          pointerEvents={viewMode === 'month' ? 'auto' : 'none'}
         >
           <SwipeMonthCalendarInfinite
-            ref={monthRef}
+            ref={monthCalendarRef}
             selected={selected}
             initialDate={selected}
             onMonthChange={handleMonthChange}
@@ -269,10 +275,10 @@ export default function CollapsibleCalendarTabs({
         {/* 주간 */}
         <Animated.View
           style={[styles.fill, weekFade]}
-          pointerEvents={mode === 'week' ? 'auto' : 'none'}
+          pointerEvents={viewMode === 'week' ? 'auto' : 'none'}
         >
           <SwipeWeekInfinite
-            ref={weekRef}
+            ref={weekCalendarRef}
             selected={selected}
             onSelectDate={handleSelectDate}
             onWeekChange={handleWeekChange}
