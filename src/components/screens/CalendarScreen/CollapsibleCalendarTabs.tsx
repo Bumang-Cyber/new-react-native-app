@@ -21,6 +21,8 @@ import SwipeWeekInfinite, {
 } from './SwipeWeekCalendarInfinite';
 import { SIDE_PAD } from '../../../constants/layout';
 import { cancelAnimation } from 'react-native-reanimated';
+import Icon from 'react-native-vector-icons/FontAwesome6';
+import { PressableBase } from '@/components/pressableBase';
 
 type Props = {
   selected: Dayjs;
@@ -65,6 +67,8 @@ export default function CollapsibleCalendarTabs({
   const WEEK_H = cell * 1;
   const DELTA = MONTH_H - WEEK_H;
 
+  // ---------------------- 달력 데이터 ----------------------
+
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
 
   // 화면의 단 하나의 기준 날짜
@@ -83,15 +87,17 @@ export default function CollapsibleCalendarTabs({
 
   const preferredWeekdayRef = useRef<number>(selected.day());
 
+  // ---------------------- 날짜 관련 함수 ----------------------
+
   // 날짜 탭 핸들러: 선택 + 기준 동기화 (+ 요일 선호 갱신)
   const handleSelectDate = (d: Dayjs) => {
     onSelectDate(d);
-    setCursorDate(prev => (sameDay(prev, d) ? prev : d));
+    setCursorDate(prev => (isSameDay(prev, d) ? prev : d));
     preferredWeekdayRef.current = d.day();
   };
 
-  const sameDay = (a: Dayjs, b: Dayjs) => a.isSame(b, 'day');
-  const sameMonth = (a: Dayjs, b: Dayjs) => a.isSame(b, 'month');
+  const isSameDay = (a: Dayjs, b: Dayjs) => a.isSame(b, 'day');
+  const isSameMonth = (a: Dayjs, b: Dayjs) => a.isSame(b, 'month');
 
   // 월/주 좌우 스와이프 → cursorDate만 갱신
   const handleMonthChange = (m: Dayjs) => {
@@ -103,7 +109,7 @@ export default function CollapsibleCalendarTabs({
     setCursorDate(prev => {
       const next = clampDay(prev, mStart);
       // 같은 날짜면 setState 스킵
-      if (sameDay(prev, next)) return prev;
+      if (isSameDay(prev, next)) return prev;
 
       // 주 뷰를 같은 컨텍스트로 미리 워프(필요할 때만)
       const targetWeek = startOfWeek(next);
@@ -130,13 +136,13 @@ export default function CollapsibleCalendarTabs({
     const pref = (preferredWeekdayRef.current ?? 0) % 7;
     const next = ws.add(pref, 'day');
 
-    setCursorDate(prev => (sameDay(prev, next) ? prev : next));
+    setCursorDate(prev => (isSameDay(prev, next) ? prev : next));
 
     // 월 뷰도 같은 컨텍스트로 미리 워프(필요할 때만)
     const targetMonth = next.startOf('month');
     if (
       !monthViewportStartRef.current ||
-      !sameMonth(monthViewportStartRef.current, targetMonth)
+      !isSameMonth(monthViewportStartRef.current, targetMonth)
     ) {
       syncingRef.current = 'month';
       monthCalendarRef.current?.goToDate?.(next, {
@@ -148,12 +154,33 @@ export default function CollapsibleCalendarTabs({
     }
   };
 
+  const handleGoPrev = () => {
+    if (syncingRef.current) return;
+    cancelAnimation(progress); // 레이스 방지
+
+    if (viewMode === 'month') {
+      monthCalendarRef.current?.goPrevMonth();
+    } else {
+      weekCalendarRef.current?.goPrevWeek();
+    }
+  };
+
+  const handleGoNext = () => {
+    cancelAnimation(progress); // 레이스 방지
+
+    if (viewMode === 'month') {
+      monthCalendarRef.current?.goNextMonth();
+    } else {
+      weekCalendarRef.current?.goNextWeek();
+    }
+  };
+
   useEffect(() => {
     if (viewMode === 'month') {
       const targetMonth = cursorDate.startOf('month');
       if (
         !monthViewportStartRef.current ||
-        !sameMonth(monthViewportStartRef.current, targetMonth)
+        !isSameMonth(monthViewportStartRef.current, targetMonth)
       ) {
         syncingRef.current = 'month';
         monthCalendarRef.current?.goToDate?.(cursorDate, {
@@ -224,6 +251,30 @@ export default function CollapsibleCalendarTabs({
 
   return (
     <View style={styles.container}>
+      {/* 월/달 전환 버튼 */}
+      <View style={styles.calendarSwiperContainer}>
+        <PressableBase
+          onPress={handleGoPrev}
+          style={styles.calendarSwiper}
+          pressScale={0.9}
+          pressOpacity={0.6}
+          debounceMs={800}
+          accessibilityLabel={viewMode === 'month' ? '전월' : '전주'}
+        >
+          <Icon name="angle-left" size={16} style={styles.arrowLeft} />
+        </PressableBase>
+        <PressableBase
+          onPress={handleGoNext}
+          style={styles.calendarSwiper}
+          pressScale={0.9}
+          pressOpacity={0.6}
+          debounceMs={800}
+          accessibilityLabel={viewMode === 'month' ? '익월' : '차주'}
+        >
+          <Icon name="angle-right" size={16} style={styles.arrowRight} />
+        </PressableBase>
+      </View>
+
       {/* 월 표기 */}
       <View style={styles.calendarTitle}>
         <Animated.Text style={[styles.title, styles.absolute, monthFade]}>
@@ -263,7 +314,6 @@ export default function CollapsibleCalendarTabs({
           <SwipeMonthCalendarInfinite
             ref={monthCalendarRef}
             selected={selected}
-            initialDate={selected}
             onMonthChange={handleMonthChange}
             onSelectDate={handleSelectDate}
             gridWidth={gridWidth}
@@ -316,6 +366,32 @@ export default function CollapsibleCalendarTabs({
 }
 
 const styles = StyleSheet.create({
+  // 전월/익월, 전주/차주 전환 버튼 스타일
+  calendarSwiperContainer: {
+    width: '100%',
+    height: 44,
+    position: 'absolute',
+    top: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 180,
+  },
+  calendarSwiper: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  arrowLeft: {
+    transform: [{ translateX: -1 }],
+  },
+  arrowRight: {
+    transform: [{ translateX: 1 }],
+  },
+
+  // 캘린더 타이틀 스타일
   calendarTitle: {
     position: 'relative',
     width: '100%',
@@ -334,6 +410,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
 
+  // 요일 표기 스타일
   weekHeader: {
     flexDirection: 'row',
     marginBottom: 16,
@@ -348,6 +425,7 @@ const styles = StyleSheet.create({
     color: '#c03',
   },
 
+  // 달력 스타일
   container: {
     flex: 1,
   },
@@ -358,6 +436,8 @@ const styles = StyleSheet.create({
   fill: {
     ...StyleSheet.absoluteFillObject,
   },
+
+  // 시트 스타일
   sheetHeader: {
     alignItems: 'center',
     paddingTop: 8,
