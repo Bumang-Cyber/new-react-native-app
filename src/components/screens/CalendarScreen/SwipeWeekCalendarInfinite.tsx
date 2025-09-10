@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import isTodayPlugin from 'dayjs/plugin/isToday';
-import { SIDE_PAD } from '../../../constants/layout';
+import { SIDE_PAD } from '@/constants/layout';
 dayjs.extend(isTodayPlugin);
 
 export type SwipeWeekHandle = {
@@ -110,6 +110,7 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
         </View>
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [selected, onSelectDate, weekFromIndex],
   );
 

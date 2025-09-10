@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import CollapsibleCalendarTabs from '../components/screens/CalendarScreen/CollapsibleCalendarTabs';
+import CollapsibleCalendarTabs from '@/components/screens/CalendarScreen/CollapsibleCalendarTabs';
 
 type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 

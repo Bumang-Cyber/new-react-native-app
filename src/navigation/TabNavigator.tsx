@@ -1,10 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import HomeScreen from '../screens/HomeScreen';
-import CalendarScreen from '../screens/CalendarScreen';
-import LibraryScreen from '../screens/LibraryScreen';
-import MyPageScreen from '../screens/MyPageScreen';
+import HomeScreen from '@/screens/HomeScreen';
+import CalendarScreen from '@/screens/CalendarScreen';
+import LibraryScreen from '@/screens/LibraryScreen';
+import MyPageScreen from '@/screens/MyPageScreen';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 
 const Tab = createBottomTabNavigator();
