@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     paddingBottom: 6,
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#eee',
   },
@@ -463,6 +463,5 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    padding: 16,
   },
 });

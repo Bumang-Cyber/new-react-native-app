@@ -72,11 +72,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     // 현재 보이는 인덱스/월
     const lastIndexRef = useRef<number>(CENTER);
 
-    // 선택 날짜
-    // const [selected, setSelected] = useState<Dayjs | null>(
-    //   dayjs( ?? anchor).startOf('day'),
-    // );
-
     // 기준 오프셋(월) 누적 값
     const baseOffsetRef = useRef(0);
     // index -> anchor로부터의 실제 month offset
@@ -176,6 +171,9 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     const listRef = useRef<FlatList<number>>(null);
     // 워프 중 중복 처리를 막기 위한 플래그
     const teleportingRef = useRef(false);
+    const isAnimatingRef = useRef(false); // NEW: 프로그램 스크롤 중 락
+    const isDraggingRef = useRef(false); // NEW: 사용자 드래그 중
+    const isMomentumRef = useRef(false); // NEW: 모멘텀 진행 중
 
     const onViewableItemsChanged = useRef(
       (info: {
@@ -184,8 +182,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
       }) => {
         if (teleportingRef.current) return;
 
-        const token = info.viewableItems[0];
-        const i = token?.index ?? null;
+        const i = info.viewableItems?.[0]?.index ?? null;
         if (i == null) return;
 
         lastIndexRef.current = i;
@@ -193,39 +190,29 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         const month = monthFromIndex(i);
         onMonthChange?.(month);
 
-        // 가장자리에 가까워지면 중앙 쪽으로 '워프'
-        if (i <= PRELOAD_THRESHOLD) {
-          teleportingRef.current = true;
-          baseOffsetRef.current -= SHIFT; // 기준 오프셋 이동(실제 과거로 확장한 효과)
-          const nextIndex = i + SHIFT; // 화면상 동일 위치 유지
-          requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: false,
-            });
-            // 워프 후 보이는 월 재동기화
-            const mm = monthFromIndex(nextIndex);
-            onMonthChange?.(mm);
-            lastIndexRef.current = nextIndex;
-            teleportingRef.current = false;
-          });
-        } else if (i >= WINDOW - 1 - PRELOAD_THRESHOLD) {
-          teleportingRef.current = true;
-          baseOffsetRef.current += SHIFT; // 기준 오프셋 이동(실제 미래로 확장한 효과)
-          const nextIndex = i - SHIFT;
-          requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: false,
-            });
-            const mm = monthFromIndex(nextIndex);
-            onMonthChange?.(mm);
-            lastIndexRef.current = nextIndex;
-            teleportingRef.current = false;
-          });
-        }
+        // ⛔️ 여기서는 재베이스(teleport) 하지 않음
       },
     ).current;
+
+    const maybeRebaseToCenter = useCallback(() => {
+      const i = lastIndexRef.current;
+      if (teleportingRef.current) return;
+
+      const atHead = i <= PRELOAD_THRESHOLD;
+      const atTail = i >= WINDOW - 1 - PRELOAD_THRESHOLD;
+      if (!atHead && !atTail) return;
+
+      teleportingRef.current = true;
+      baseOffsetRef.current += atTail ? SHIFT : -SHIFT;
+      const nextIndex = atTail ? i - SHIFT : i + SHIFT;
+
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({ index: nextIndex, animated: false });
+        lastIndexRef.current = nextIndex;
+        onMonthChange?.(monthFromIndex(nextIndex));
+        teleportingRef.current = false;
+      });
+    }, [monthFromIndex, onMonthChange]);
 
     useImperativeHandle(ref, () => ({
       goPrevMonth() {
@@ -335,6 +322,20 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         initialNumToRender={3} // 초기에 몇 개 렌더(빠른 첫 페인트)
         maxToRenderPerBatch={3}
         removeClippedSubviews
+        onScrollBeginDrag={() => {
+          isDraggingRef.current = true;
+        }}
+        onScrollEndDrag={() => {
+          isDraggingRef.current = false;
+        }}
+        onMomentumScrollBegin={() => {
+          isMomentumRef.current = true;
+        }}
+        onMomentumScrollEnd={() => {
+          isMomentumRef.current = false;
+          isAnimatingRef.current = false; // 프로그램 스크롤 락 해제
+          maybeRebaseToCenter(); // ✅ 종료 후에만 재베이스
+        }}
       />
     );
   },
