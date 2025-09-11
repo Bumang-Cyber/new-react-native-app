@@ -1,9 +1,12 @@
 // CalendarPage.tsx
 import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CollapsibleCalendarTabs from '@/components/screens/CalendarScreen/CollapsibleCalendarTabs';
+import DietTab from '@/components/screens/CalendarScreen/Tabs/DietTab';
+import WorkoutTab from '@/components/screens/CalendarScreen/Tabs/WorkoutTab';
+import BodyTab from '@/components/screens/CalendarScreen/Tabs/BodyTab';
 
 type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 
@@ -40,38 +43,13 @@ export default function CalendarPage() {
   }, [selectedDate]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <CollapsibleCalendarTabs
         selected={selectedDate}
         onSelectDate={setSelectedDate}
-        renderDiet={() => (
-          <View style={styles.calenderContainer}>
-            <View style={styles.workHeader}>
-              <Text style={styles.workHeaderText}>일정</Text>
-            </View>
-            <FlatList
-              style={styles.calenderContainer}
-              data={eventsForSelected}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.contentContainer}
-              renderItem={({ item }) => (
-                <View style={styles.eventCard}>
-                  <Text style={styles.eventTitle}>{item.title}</Text>
-                  {item.time ? (
-                    <Text style={styles.eventTime}>{item.time}</Text>
-                  ) : null}
-                </View>
-              )}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>
-                  선택한 날짜에 일정이 없습니다.
-                </Text>
-              }
-            />
-          </View>
-        )}
-        renderWorkout={() => <Text>운동 탭</Text>}
-        renderBody={() => <Text>신체 탭</Text>}
+        renderDiet={() => <DietTab />}
+        renderWorkout={() => <WorkoutTab />}
+        renderBody={() => <BodyTab />}
       />
     </SafeAreaView>
   );
@@ -80,7 +58,7 @@ export default function CalendarPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
   },
   calenderContainer: {
     flex: 1,
@@ -111,7 +89,6 @@ const styles = StyleSheet.create({
   listHeader: {
     paddingHorizontal: 20,
     paddingVertical: 8,
-    // marginTop: 60,
   },
   listHeaderText: {
     fontSize: 16,

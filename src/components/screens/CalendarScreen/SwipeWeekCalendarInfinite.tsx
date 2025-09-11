@@ -1,10 +1,10 @@
-// SwipeWeekInfinite.tsx
 import React, {
   useMemo,
   useRef,
   useCallback,
   forwardRef,
   useImperativeHandle,
+  useState,
 } from 'react';
 import {
   View,
@@ -33,9 +33,7 @@ type Props = {
   selected: Dayjs;
   onSelectDate: (d: Dayjs) => void;
   onWeekChange?: (weekStart: Dayjs) => void;
-  weekStartsOn?: 0 | 1; // 0=일 1=월
-
-  // 레이아웃 관련
+  weekStartsOn?: 0 | 1;
   gridWidth: number;
   cellWidth: number;
   width: number;
@@ -47,7 +45,7 @@ const WEEK_SHIFT = WEEK_CENTER;
 const PRELOAD = 4;
 
 const startOfWeek = (d: Dayjs, weekStartsOn: 0 | 1 = 0) => {
-  const w = d.day(); // 0..6
+  const w = d.day();
   const off = weekStartsOn === 1 ? (w + 6) % 7 : w;
   return d.startOf('day').subtract(off, 'day');
 };
@@ -69,17 +67,29 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
     [],
   );
 
-  // 기준/상태 refs
-  const anchorRef = useRef(startOfWeek(selected ?? dayjs(), weekStartsOn)); // 최초 주 시작
-  const baseRef = useRef(0); // 앵커로부터 몇 주 이동했는지의 베이스(센터 보정용)
+  const anchorRef = useRef(startOfWeek(selected ?? dayjs(), weekStartsOn));
+  const baseRef = useRef(0);
   const listRef = useRef<FlatList<number>>(null);
   const teleportingRef = useRef(false);
-  const isAnimatingRef = useRef(false); // 스크롤 애니메이션 중 가드
-  const lastIndexRef = useRef<number>(WEEK_CENTER); // 현재 보이는 인덱스 추적
+  const lastIndexRef = useRef<number>(WEEK_CENTER);
+
+  const [scrollLocked, setScrollLocked] = useState(false);
+  const lockScroll = () => setScrollLocked(true);
+  const unlockScroll = () => setScrollLocked(false);
+
+  // Navigation cooldown
+  const NAV_COOLDOWN = 280;
+  const lastNavAtRef = useRef(0);
+  const inCooldown = () => {
+    const now = Date.now();
+    if (now - lastNavAtRef.current < NAV_COOLDOWN) return true;
+    lastNavAtRef.current = now;
+    return false;
+  };
 
   const weekFromIndex = useCallback((index: number) => {
     const eff = baseRef.current + (index - WEEK_CENTER);
-    return anchorRef.current.add(eff, 'week'); // 주 시작일
+    return anchorRef.current.add(eff, 'week');
   }, []);
 
   const renderItem = useCallback(
@@ -117,8 +127,7 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
         </View>
       );
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selected, onSelectDate, weekFromIndex],
+    [selected, onSelectDate, weekFromIndex, gridWidth, cellWidth, width],
   );
 
   const getItemLayout = useCallback(
@@ -130,73 +139,32 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
     [width],
   );
 
-  // 현재 보이는 주(인덱스) 감시 + 무한루프용 텔레포트
   const onViewable = useRef(
     (info: { viewableItems: Array<ViewToken<number>> }) => {
       if (teleportingRef.current) return;
-
       const i = info.viewableItems?.[0]?.index ?? null;
       if (i == null) return;
-
-      lastIndexRef.current = i; // 현재 인덱스 추적
-      const wk = weekFromIndex(i);
-      onWeekChange?.(wk);
-
-      // 프리로드 영역 접근 시 재베이스(센터 근처로 점프)
-      if (i <= PRELOAD) {
-        teleportingRef.current = true;
-        baseRef.current -= WEEK_SHIFT;
-        const next = i + WEEK_SHIFT;
-        requestAnimationFrame(() => {
-          listRef.current?.scrollToIndex({ index: next, animated: false });
-          lastIndexRef.current = next;
-          onWeekChange?.(weekFromIndex(next));
-          teleportingRef.current = false;
-        });
-      } else if (i >= WEEK_WINDOW - 1 - PRELOAD) {
-        teleportingRef.current = true;
-        baseRef.current += WEEK_SHIFT;
-        const next = i - WEEK_SHIFT;
-        requestAnimationFrame(() => {
-          listRef.current?.scrollToIndex({ index: next, animated: false });
-          lastIndexRef.current = next;
-          onWeekChange?.(weekFromIndex(next));
-          teleportingRef.current = false;
-        });
-      }
+      lastIndexRef.current = i;
+      onWeekChange?.(weekFromIndex(i));
     },
   ).current;
 
-  // 현재 보이는 주 시작일 계산 유틸
-  const currentVisibleWeekStart = useCallback(() => {
-    return weekFromIndex(lastIndexRef.current);
-  }, [weekFromIndex]);
-
-  // 공통 이동 헬퍼(±n주)
   const goByWeeks = useCallback(
     (step: number) => {
-      if (teleportingRef.current || isAnimatingRef.current) return;
+      if (teleportingRef.current || inCooldown()) return;
 
       const nextIndex = lastIndexRef.current + step;
-
-      // 윈도우 안 → 애니메이션 스크롤
       if (nextIndex >= 0 && nextIndex < WEEK_WINDOW) {
-        isAnimatingRef.current = true;
         listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
         lastIndexRef.current = nextIndex;
         onWeekChange?.(weekFromIndex(nextIndex));
-        // 간단 락 해제 (가능하면 onMomentumScrollEnd에서 해제하도록 개선 가능)
-        setTimeout(() => {
-          isAnimatingRef.current = false;
-        }, 160);
         return;
       }
 
-      // 경계 밖 → 베이스 재정렬 후 중앙으로 텔레포트
       teleportingRef.current = true;
-      const cur = currentVisibleWeekStart();
+      lockScroll();
+      const cur = weekFromIndex(lastIndexRef.current);
       const target = cur.add(step, 'week');
-      // anchor 기준 오프셋을 재정렬: CENTER가 target이 되도록
       baseRef.current = target.diff(anchorRef.current, 'week');
 
       requestAnimationFrame(() => {
@@ -204,17 +172,40 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
         lastIndexRef.current = WEEK_CENTER;
         onWeekChange?.(weekFromIndex(WEEK_CENTER));
         teleportingRef.current = false;
+        unlockScroll();
       });
     },
-    [currentVisibleWeekStart, onWeekChange, weekFromIndex],
+    [onWeekChange, weekFromIndex],
   );
+
+  const maybeRebaseToCenter = useCallback(() => {
+    const i = lastIndexRef.current;
+    if (teleportingRef.current) return;
+
+    const atHead = i <= PRELOAD;
+    const atTail = i >= WEEK_WINDOW - 1 - PRELOAD;
+    if (!atHead && !atTail) return;
+
+    teleportingRef.current = true;
+    lockScroll();
+    baseRef.current += atTail ? WEEK_SHIFT : -WEEK_SHIFT;
+    const next = atTail ? i - WEEK_SHIFT : i + WEEK_SHIFT;
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: next, animated: false });
+      lastIndexRef.current = next;
+      onWeekChange?.(weekFromIndex(next));
+      teleportingRef.current = false;
+      unlockScroll();
+    });
+  }, [onWeekChange, weekFromIndex]);
 
   useImperativeHandle(ref, () => ({
     goToWeek(dateLike, opts) {
-      if (teleportingRef.current || isAnimatingRef.current) return;
+      if (teleportingRef.current || inCooldown()) return;
 
       const d = dayjs(dateLike);
-      const target = startOfWeek(d, weekStartsOn); // 목표 주 시작
+      const target = startOfWeek(d, weekStartsOn);
       const diff = target.diff(anchorRef.current, 'week');
       const idx = diff - baseRef.current + WEEK_CENTER;
       const animated = opts?.animated ?? true;
@@ -224,18 +215,13 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
       };
 
       if (idx >= 0 && idx < WEEK_WINDOW) {
-        if (animated) isAnimatingRef.current = true;
         listRef.current?.scrollToIndex({ index: idx, animated });
         lastIndexRef.current = idx;
         onWeekChange?.(target);
-        if (animated) {
-          setTimeout(() => {
-            isAnimatingRef.current = false;
-          }, 160);
-        }
         finalize();
       } else {
         teleportingRef.current = true;
+        lockScroll();
         baseRef.current = diff;
         requestAnimationFrame(() => {
           listRef.current?.scrollToIndex({
@@ -250,24 +236,26 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
             ),
           );
           teleportingRef.current = false;
+          unlockScroll();
           finalize();
         });
       }
     },
 
     goPrevWeek() {
-      if (teleportingRef.current) return;
+      if (teleportingRef.current || inCooldown()) return;
       goByWeeks(-1);
     },
 
     goNextWeek() {
-      if (teleportingRef.current) return;
+      if (teleportingRef.current || inCooldown()) return;
       goByWeeks(1);
     },
   }));
 
   return (
     <FlatList
+      scrollEnabled={!scrollLocked}
       ref={listRef}
       data={data}
       horizontal
@@ -277,14 +265,17 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
       initialScrollIndex={WEEK_CENTER}
       getItemLayout={getItemLayout}
       onViewableItemsChanged={onViewable}
-      viewabilityConfig={{ itemVisiblePercentThreshold: 51 }}
+      viewabilityConfig={{ itemVisiblePercentThreshold: 95 }}
       showsHorizontalScrollIndicator={false}
       windowSize={3}
       initialNumToRender={3}
       maxToRenderPerBatch={3}
       removeClippedSubviews
-      // 더 정확한 락 해제를 원하면 아래 콜백에서 isAnimatingRef.current=false로:
-      // onMomentumScrollEnd={() => { isAnimatingRef.current = false; }}
+      onMomentumScrollEnd={() => {
+        unlockScroll();
+        lastNavAtRef.current = Date.now();
+        maybeRebaseToCenter();
+      }}
     />
   );
 });

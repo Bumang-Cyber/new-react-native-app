@@ -3,6 +3,7 @@ import React, {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useState,
 } from 'react';
 import {
   View,
@@ -22,7 +23,6 @@ dayjs.extend(isTodayPlugin);
 type Props = {
   onMonthChange?: (m: Dayjs) => void;
   onSelectDate?: (d: Dayjs) => void;
-
   selected: Dayjs;
   gridWidth: number;
   cellWidth: number;
@@ -32,7 +32,7 @@ type Props = {
 export type SwipeMonthCalendarHandle = {
   goPrevMonth: () => void;
   goNextMonth: () => void;
-  scrollToMonthOffset: (offset: number) => void; // anchor 기준 offset로 스크롤
+  scrollToMonthOffset: (offset: number) => void;
   goToday: (select?: boolean) => void;
   goToDate: (
     dateLike: Dayjs | string | Date,
@@ -42,62 +42,57 @@ export type SwipeMonthCalendarHandle = {
 
 type Cell = { date: Dayjs; inMonth: boolean };
 
-// ── 링 버퍼 파라미터 ──────────────────────────────────────────────
-const WINDOW = 60; // 고정 페이지 수 (예: 4년)
-const SHIFT = WINDOW / 2; // 워프 이동 칸수 (보통 WINDOW/2)
+// Ring buffer params
+const WINDOW = 100;
+const SHIFT = WINDOW / 2;
 const CENTER = Math.floor(WINDOW / 2);
-const PRELOAD_THRESHOLD = 4; // 가장자리 감지 임계치
+const PRELOAD_THRESHOLD = 4;
 
-// ── 레이아웃 ─────────────────────────────────────────────────────
-const SIDE_PAD = 12; // styles.page.paddingHorizontal 과 동일해야 함
+// Layout
+const SIDE_PAD = 12;
 const DATA = Array.from({ length: WINDOW }, (_, i) => i);
 
 const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
   (
-    {
-      selected,
-      onMonthChange,
-      onSelectDate,
-
-      gridWidth,
-      cellWidth,
-      width,
-    },
+    { selected, onMonthChange, onSelectDate, gridWidth, cellWidth, width },
     ref,
   ) => {
-    // anchor는 최초 1회 고정
     const anchorRef = useRef(dayjs(selected ?? new Date()).startOf('month'));
     const anchor = anchorRef.current;
 
-    // 현재 보이는 인덱스/월
     const lastIndexRef = useRef<number>(CENTER);
-
-    // 선택 날짜
-    // const [selected, setSelected] = useState<Dayjs | null>(
-    //   dayjs( ?? anchor).startOf('day'),
-    // );
-
-    // 기준 오프셋(월) 누적 값
     const baseOffsetRef = useRef(0);
-    // index -> anchor로부터의 실제 month offset
+    const listRef = useRef<FlatList<number>>(null);
+    const teleportingRef = useRef(false);
 
-    // 기준월에서
+    const [scrollLocked, setScrollLocked] = useState(false);
+    const lockScroll = () => setScrollLocked(true);
+    const unlockScroll = () => setScrollLocked(false);
+
+    // Navigation cooldown
+    const NAV_COOLDOWN = 280;
+    const lastNavAtRef = useRef(0);
+    const inCooldown = () => {
+      const now = Date.now();
+      if (now - lastNavAtRef.current < NAV_COOLDOWN) return true;
+      lastNavAtRef.current = now;
+      return false;
+    };
+
     const offsetFromIndex = useCallback(
       (index: number) => baseOffsetRef.current + (index - CENTER),
       [],
     );
-    // 실제 month 계산
+
     const monthFromIndex = useCallback(
       (index: number) => anchor.add(offsetFromIndex(index), 'month'),
       [anchor, offsetFromIndex],
     );
 
-    // 42칸(6주) '일' 그리드 생성
     const buildMonthMatrix = useCallback((month: Dayjs): Cell[] => {
       const start = month.startOf('month');
-      const firstWeekday = start.day(); // 0(일)~6(토)
-      const offset = firstWeekday;
-      const gridStart = start.subtract(offset, 'day');
+      const firstWeekday = start.day();
+      const gridStart = start.subtract(firstWeekday, 'day');
 
       const out: Cell[] = [];
       for (let i = 0; i < 42; i++) {
@@ -114,7 +109,6 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
 
         return (
           <View style={[styles.page, { width }]}>
-            {/* 날짜 그리드: 픽셀 고정 */}
             <View style={[styles.grid, { width: gridWidth }]}>
               {cells.map(cell => {
                 const key = cell.date.format('YYYY-MM-DD');
@@ -131,10 +125,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
                       isSelected && styles.cellSelected,
                       isToday && styles.cellToday,
                     ]}
-                    onPress={() => {
-                      const d = cell.date.startOf('day');
-                      onSelectDate?.(d);
-                    }}
+                    onPress={() => onSelectDate?.(cell.date.startOf('day'))}
                   >
                     <Text
                       style={[
@@ -172,126 +163,98 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
       [width],
     );
 
-    // 헤더 제어용 메서드
-    const listRef = useRef<FlatList<number>>(null);
-    // 워프 중 중복 처리를 막기 위한 플래그
-    const teleportingRef = useRef(false);
-
     const onViewableItemsChanged = useRef(
-      (info: {
-        viewableItems: Array<ViewToken<number>>;
-        changed: Array<ViewToken<number>>;
-      }) => {
+      (info: { viewableItems: Array<ViewToken<number>> }) => {
         if (teleportingRef.current) return;
-
-        const token = info.viewableItems[0];
-        const i = token?.index ?? null;
+        const i = info.viewableItems?.[0]?.index ?? null;
         if (i == null) return;
 
         lastIndexRef.current = i;
-
-        const month = monthFromIndex(i);
-        onMonthChange?.(month);
-
-        // 가장자리에 가까워지면 중앙 쪽으로 '워프'
-        if (i <= PRELOAD_THRESHOLD) {
-          teleportingRef.current = true;
-          baseOffsetRef.current -= SHIFT; // 기준 오프셋 이동(실제 과거로 확장한 효과)
-          const nextIndex = i + SHIFT; // 화면상 동일 위치 유지
-          requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: false,
-            });
-            // 워프 후 보이는 월 재동기화
-            const mm = monthFromIndex(nextIndex);
-            onMonthChange?.(mm);
-            lastIndexRef.current = nextIndex;
-            teleportingRef.current = false;
-          });
-        } else if (i >= WINDOW - 1 - PRELOAD_THRESHOLD) {
-          teleportingRef.current = true;
-          baseOffsetRef.current += SHIFT; // 기준 오프셋 이동(실제 미래로 확장한 효과)
-          const nextIndex = i - SHIFT;
-          requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({
-              index: nextIndex,
-              animated: false,
-            });
-            const mm = monthFromIndex(nextIndex);
-            onMonthChange?.(mm);
-            lastIndexRef.current = nextIndex;
-            teleportingRef.current = false;
-          });
-        }
+        onMonthChange?.(monthFromIndex(i));
       },
     ).current;
 
+    const maybeRebaseToCenter = useCallback(() => {
+      const i = lastIndexRef.current;
+      if (teleportingRef.current) return;
+
+      const atHead = i <= PRELOAD_THRESHOLD;
+      const atTail = i >= WINDOW - 1 - PRELOAD_THRESHOLD;
+      if (!atHead && !atTail) return;
+
+      teleportingRef.current = true;
+      lockScroll();
+      baseOffsetRef.current += atTail ? SHIFT : -SHIFT;
+      const nextIndex = atTail ? i - SHIFT : i + SHIFT;
+
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({ index: nextIndex, animated: false });
+        lastIndexRef.current = nextIndex;
+        onMonthChange?.(monthFromIndex(nextIndex));
+        teleportingRef.current = false;
+        unlockScroll();
+      });
+    }, [monthFromIndex, onMonthChange]);
+
     useImperativeHandle(ref, () => ({
       goPrevMonth() {
-        if (teleportingRef.current) return;
+        if (teleportingRef.current || inCooldown()) return;
         const idx = Math.max(0, lastIndexRef.current - 1);
         listRef.current?.scrollToIndex({ index: idx, animated: true });
       },
       goNextMonth() {
-        if (teleportingRef.current) return;
+        if (teleportingRef.current || inCooldown()) return;
         const idx = Math.min(WINDOW - 1, lastIndexRef.current + 1);
         listRef.current?.scrollToIndex({ index: idx, animated: true });
       },
       scrollToMonthOffset(targetOffset: number) {
-        // baseOffsetRef + (index - CENTER) = targetOffset → index = targetOffset - base + CENTER
+        if (teleportingRef.current || inCooldown()) return;
         const idx = targetOffset - baseOffsetRef.current + CENTER;
         if (idx >= 0 && idx < WINDOW) {
           listRef.current?.scrollToIndex({ index: idx, animated: true });
         } else {
-          // 범위를 벗어나면 기준을 재조정 후 중앙으로 텔레포트
           teleportingRef.current = true;
-          baseOffsetRef.current = targetOffset; // 중앙(CENTER)이 targetOffset이 되도록
+          lockScroll();
+          baseOffsetRef.current = targetOffset;
           requestAnimationFrame(() => {
             listRef.current?.scrollToIndex({ index: CENTER, animated: false });
-            const mm = monthFromIndex(CENTER);
-            onMonthChange?.(mm);
+            onMonthChange?.(monthFromIndex(CENTER));
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
+            unlockScroll();
           });
         }
       },
       goToday(select = true) {
+        if (teleportingRef.current || inCooldown()) return;
         const todayStart = dayjs().startOf('day');
         const todayMonth = todayStart.startOf('month');
-
-        // anchor로부터 '오늘의 달'까지 몇 개월 차이인지
         const targetOffset = todayMonth.diff(anchorRef.current, 'month');
-
-        // 내부 jump 로직 (scrollToMonthOffset과 동일한 원리)
         const idx = targetOffset - baseOffsetRef.current + CENTER;
+
         if (idx >= 0 && idx < WINDOW) {
-          // 윈도우 안이면 그냥 스크롤
           listRef.current?.scrollToIndex({ index: idx, animated: true });
         } else {
-          // 윈도우 밖이면 기준을 재조정 후 중앙으로 텔레포트
           teleportingRef.current = true;
+          lockScroll();
           baseOffsetRef.current = targetOffset;
           requestAnimationFrame(() => {
             listRef.current?.scrollToIndex({ index: CENTER, animated: false });
-            const mm = anchorRef.current.add(
-              baseOffsetRef.current + (CENTER - CENTER),
-              'month',
+            onMonthChange?.(
+              anchorRef.current.add(baseOffsetRef.current, 'month'),
             );
-            onMonthChange?.(mm);
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
+            unlockScroll();
           });
         }
-
-        // 선택까지 맞추고 싶으면
         if (select && onSelectDate) onSelectDate(todayStart);
       },
       goToDate(dateLike, opts) {
+        if (teleportingRef.current || inCooldown()) return;
         const d = dayjs(dateLike);
         const targetMonth = d.startOf('month');
         const targetOffset = targetMonth.diff(anchorRef.current, 'month');
-
         const idx = targetOffset - baseOffsetRef.current + CENTER;
         const animated = opts?.animated ?? true;
 
@@ -305,13 +268,14 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
           finalize();
         } else {
           teleportingRef.current = true;
+          lockScroll();
           baseOffsetRef.current = targetOffset;
           requestAnimationFrame(() => {
             listRef.current?.scrollToIndex({ index: CENTER, animated: false });
-            const mm = monthFromIndex(CENTER);
-            onMonthChange?.(mm);
+            onMonthChange?.(monthFromIndex(CENTER));
             lastIndexRef.current = CENTER;
             teleportingRef.current = false;
+            unlockScroll();
             finalize();
           });
         }
@@ -320,21 +284,27 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
 
     return (
       <FlatList
+        scrollEnabled={!scrollLocked}
         ref={listRef}
         data={DATA}
         horizontal
         pagingEnabled
         keyExtractor={i => String(i)}
         renderItem={renderItem}
-        initialScrollIndex={CENTER} // 시작 인덱스
+        initialScrollIndex={CENTER}
         getItemLayout={getItemLayout}
-        onViewableItemsChanged={onViewableItemsChanged} // 보이는 아이템 바뀔때마다 호출 (onChange)
-        viewabilityConfig={{ itemVisiblePercentThreshold: 51 }} // 51퍼센트 이상 보여야 '보임'으로 간주.
-        showsHorizontalScrollIndicator={false} // 가로 스크롤바 가림
-        windowSize={3} // windowing 얼마나 하고 있을지
-        initialNumToRender={3} // 초기에 몇 개 렌더(빠른 첫 페인트)
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 95 }}
+        showsHorizontalScrollIndicator={false}
+        windowSize={3}
+        initialNumToRender={3}
         maxToRenderPerBatch={3}
         removeClippedSubviews
+        onMomentumScrollEnd={() => {
+          unlockScroll();
+          lastNavAtRef.current = Date.now();
+          maybeRebaseToCenter();
+        }}
       />
     );
   },
