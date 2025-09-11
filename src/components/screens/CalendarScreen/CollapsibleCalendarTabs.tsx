@@ -8,6 +8,7 @@ import Animated, {
   interpolate,
   Extrapolation,
   runOnJS,
+  withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import PagerView from 'react-native-pager-view';
@@ -23,6 +24,7 @@ import { SIDE_PAD } from '../../../constants/layout';
 import { cancelAnimation } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/FontAwesome6';
 import { PressableBase } from '@/components/pressableBase';
+import useTabTextStyle from '@/hook/useTabAnimateStyle';
 
 type Props = {
   selected: Dayjs;
@@ -249,6 +251,25 @@ export default function CollapsibleCalendarTabs({
     .activeOffsetX([-15, 15]) // 수평 브러시 스와이프와 충돌 줄이기
     .minDistance(3);
 
+  const [page, setPage] = useState(0); // 페이지
+  const [tabW, setTabW] = useState(0); // 탭 바 전체 폭
+  const tabPos = useSharedValue(0); // 0,1,2
+
+  const pagerRef = useRef<PagerView>(null);
+  const tabBgStyle = useAnimatedStyle(() => ({
+    left: (tabW / 3) * tabPos.value,
+  }));
+
+  const dietTextStyle = useTabTextStyle(0, tabPos);
+  const workoutTextStyle = useTabTextStyle(1, tabPos);
+  const bodyTextStyle = useTabTextStyle(2, tabPos);
+
+  const goPage = (idx: number) => {
+    pagerRef.current?.setPage(idx);
+    // 클릭은 살짝만 애니메이션 (짧게)
+    tabPos.value = withTiming(idx);
+  };
+
   return (
     <View style={styles.container}>
       {/* 월/달 전환 버튼 */}
@@ -288,14 +309,16 @@ export default function CollapsibleCalendarTabs({
       {/* 요일 헤더: 픽셀 고정 */}
       <View style={[styles.weekHeader, { width: gridWidth }]}>
         {labels.map((l, i) => {
-          const isWeekend = i === 0 || i === 6;
+          const isSunday = i === 0;
+          const isSaturday = i === 6;
           return (
             <Text
               key={i}
               style={[
                 styles.weekday,
                 { width: cellWidth },
-                isWeekend && styles.weekend,
+                isSunday && styles.sunday,
+                isSaturday && styles.saturday,
               ]}
             >
               {l}
@@ -349,8 +372,57 @@ export default function CollapsibleCalendarTabs({
         </Animated.View>
       </GestureDetector>
 
+      {/* 탭 인디케이터 */}
+      <View style={styles.tabIndicatorContainer}>
+        <View
+          style={styles.tabIndicatorInner}
+          onLayout={e => setTabW(e.nativeEvent.layout.width)}
+        >
+          <Animated.View style={[styles.tabIndicatorBackground, tabBgStyle]} />
+          <PressableBase
+            style={styles.tabIndicatorItem}
+            onPress={() => goPage(0)}
+          >
+            <Animated.Text style={[styles.tabIndicatorItemText, dietTextStyle]}>
+              식단
+            </Animated.Text>
+          </PressableBase>
+
+          <PressableBase
+            style={styles.tabIndicatorItem}
+            onPress={() => goPage(1)}
+          >
+            <Animated.Text
+              style={[styles.tabIndicatorItemText, workoutTextStyle]}
+            >
+              운동
+            </Animated.Text>
+          </PressableBase>
+
+          <PressableBase
+            style={styles.tabIndicatorItem}
+            onPress={() => goPage(2)}
+          >
+            <Animated.Text style={[styles.tabIndicatorItemText, bodyTextStyle]}>
+              신체
+            </Animated.Text>
+          </PressableBase>
+        </View>
+      </View>
+
       {/* 탭 콘텐츠 (PagerView) */}
-      <PagerView style={styles.pager} initialPage={0}>
+      <PagerView
+        ref={pagerRef}
+        style={styles.pager}
+        initialPage={0}
+        onPageScroll={e => {
+          const { position, offset } = e.nativeEvent; // position: 정수 페이지, offset: 0~1
+          // 스와이프 중엔 애니메이션 없이 즉시 반영 → 거의 동시에 움직임
+          const idx = e.nativeEvent.position;
+          setPage(idx);
+          tabPos.value = position + offset;
+        }}
+      >
         <View key="diet" style={styles.page}>
           {renderDiet()}
         </View>
@@ -421,8 +493,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  weekend: {
-    color: '#c03',
+  sunday: {
+    color: '#E8B08E',
+  },
+  saturday: {
+    color: '#89CFF0',
   },
 
   // 달력 스타일
@@ -458,6 +533,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
   },
+
+  // 탭 인디케이터 스타일
+  tabIndicatorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f9f9f9',
+  },
+  tabIndicatorInner: {
+    position: 'relative',
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#d9d9d9',
+  },
+  tabIndicatorBackground: {
+    position: 'absolute',
+    backgroundColor: '#111',
+    height: '100%',
+    width: '33.3%',
+    zIndex: -1,
+    borderRadius: 8,
+    left: 0,
+  },
+  tabIndicatorItem: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  tabSelected: {
+    color: 'white',
+  },
+  tabIndicatorItemText: {
+    color: 'black',
+  },
+  tabIndicatorItemLeft: {},
+  tabIndicatorItemRight: {},
+
+  // 탭 콘텐츠 스타일
   pager: {
     flex: 1,
   },

@@ -5,6 +5,8 @@ import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CollapsibleCalendarTabs from '@/components/screens/CalendarScreen/CollapsibleCalendarTabs';
 import DietTab from '@/components/screens/CalendarScreen/Tabs/DietTab';
+import WorkoutTab from '@/components/screens/CalendarScreen/Tabs/WorkoutTab';
+import BodyTab from '@/components/screens/CalendarScreen/Tabs/BodyTab';
 
 type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 
@@ -46,8 +48,8 @@ export default function CalendarPage() {
         selected={selectedDate}
         onSelectDate={setSelectedDate}
         renderDiet={() => <DietTab />}
-        renderWorkout={() => <Text>운동 탭</Text>}
-        renderBody={() => <Text>신체 탭</Text>}
+        renderWorkout={() => <WorkoutTab />}
+        renderBody={() => <BodyTab />}
       />
     </SafeAreaView>
   );
