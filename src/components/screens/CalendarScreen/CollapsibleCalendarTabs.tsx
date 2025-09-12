@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import PagerView from 'react-native-pager-view';
-import { Dayjs } from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 
 import SwipeMonthCalendarInfinite, {
   SwipeMonthCalendarHandle,
@@ -23,7 +23,7 @@ import SwipeWeekInfinite, {
 import { SIDE_PAD } from '../../../constants/layout';
 import { cancelAnimation } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/FontAwesome6';
-import { PressableBase } from '@/components/pressableBase';
+import { PressableBase } from '@/components/common/pressableBase';
 import useTabTextStyle from '@/hook/useTabAnimateStyle';
 
 type Props = {
@@ -177,6 +177,69 @@ export default function CollapsibleCalendarTabs({
     }
   };
 
+  // 파일 상단에 dayjs 기본 import가 없다면 추가
+  // import dayjs from 'dayjs';
+
+  const handleGoToday = () => {
+    if (syncingRef.current) return;
+    cancelAnimation(progress);
+
+    const today = dayjs().startOf('day');
+    const tMonth = today.startOf('month');
+    const tWeekStart = startOfWeek(today);
+
+    if (viewMode === 'month') {
+      // 활성: 월 뷰는 애니메이션 이동
+      syncingRef.current = 'month';
+      monthCalendarRef.current?.goToDate?.(today, {
+        animated: true,
+        select: false,
+      });
+      monthViewportStartRef.current = tMonth;
+      syncingRef.current = null;
+
+      // 비활성: 주 뷰는 즉시 워프
+      if (
+        !weekViewportStartRef.current ||
+        !weekViewportStartRef.current.isSame(tWeekStart, 'day')
+      ) {
+        syncingRef.current = 'week';
+        weekCalendarRef.current?.goToWeek?.(tWeekStart, {
+          animated: false,
+          select: false,
+        });
+        weekViewportStartRef.current = tWeekStart;
+        syncingRef.current = null;
+      }
+    } else {
+      // 활성: 주 뷰는 애니메이션 이동
+      syncingRef.current = 'week';
+      weekCalendarRef.current?.goToWeek?.(tWeekStart, {
+        animated: true,
+        select: false,
+      });
+      weekViewportStartRef.current = tWeekStart;
+      syncingRef.current = null;
+
+      // 비활성: 월 뷰는 즉시 워프
+      if (
+        !monthViewportStartRef.current ||
+        !isSameMonth(monthViewportStartRef.current, tMonth)
+      ) {
+        syncingRef.current = 'month';
+        monthCalendarRef.current?.goToDate?.(today, {
+          animated: false,
+          select: false,
+        });
+        monthViewportStartRef.current = tMonth;
+        syncingRef.current = null;
+      }
+    }
+
+    // 선택/커서 동기화(콜백은 여기서 한 번만 발생)
+    handleSelectDate(today);
+  };
+
   useEffect(() => {
     if (viewMode === 'month') {
       const targetMonth = cursorDate.startOf('month');
@@ -292,6 +355,16 @@ export default function CollapsibleCalendarTabs({
           accessibilityLabel={viewMode === 'month' ? '익월' : '차주'}
         >
           <Icon name="angle-right" size={16} style={styles.arrowRight} />
+        </PressableBase>
+
+        <PressableBase
+          pressScale={0.9}
+          pressOpacity={0.6}
+          debounceMs={800}
+          style={styles.today}
+          onPress={handleGoToday}
+        >
+          <Text style={styles.todayText}>오늘</Text>
         </PressableBase>
       </View>
 
@@ -444,7 +517,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 180,
+    gap: 160,
   },
   calendarSwiper: {
     width: 30,
@@ -458,6 +531,13 @@ const styles = StyleSheet.create({
   },
   arrowRight: {
     transform: [{ translateX: 1 }],
+  },
+  today: {
+    position: 'absolute',
+    right: 36,
+  },
+  todayText: {
+    color: '#666',
   },
 
   // 캘린더 타이틀 스타일
