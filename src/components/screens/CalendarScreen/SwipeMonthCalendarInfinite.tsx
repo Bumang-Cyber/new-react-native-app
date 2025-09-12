@@ -12,7 +12,6 @@ import {
   Pressable,
   StyleSheet,
   ListRenderItemInfo,
-  ViewToken,
 } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -70,7 +69,7 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
     const unlockScroll = () => setScrollLocked(false);
 
     // Navigation cooldown
-    const NAV_COOLDOWN = 280;
+    const NAV_COOLDOWN = 1000;
     const lastNavAtRef = useRef(0);
     const inCooldown = () => {
       const now = Date.now();
@@ -163,16 +162,21 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
       [width],
     );
 
-    const onViewableItemsChanged = useRef(
-      (info: { viewableItems: Array<ViewToken<number>> }) => {
-        if (teleportingRef.current) return;
-        const i = info.viewableItems?.[0]?.index ?? null;
-        if (i == null) return;
+    const handleMomentumEnd = (e: any) => {
+      unlockScroll();
+      if (teleportingRef.current) return;
 
-        lastIndexRef.current = i;
-        onMonthChange?.(monthFromIndex(i));
-      },
-    ).current;
+      const x = e.nativeEvent.contentOffset.x;
+      const idx = Math.round(x / width); // 정착 인덱스 계산
+
+      if (idx !== lastIndexRef.current) {
+        lastIndexRef.current = idx;
+        onMonthChange?.(monthFromIndex(idx));
+      }
+
+      lastNavAtRef.current = Date.now();
+      maybeRebaseToCenter(); // 모멘텀 종료 후 재베이스 1회
+    };
 
     const maybeRebaseToCenter = useCallback(() => {
       const i = lastIndexRef.current;
@@ -293,18 +297,14 @@ const SwipeMonthCalendarInfinite = forwardRef<SwipeMonthCalendarHandle, Props>(
         renderItem={renderItem}
         initialScrollIndex={CENTER}
         getItemLayout={getItemLayout}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 95 }}
         showsHorizontalScrollIndicator={false}
         windowSize={3}
         initialNumToRender={3}
         maxToRenderPerBatch={3}
         removeClippedSubviews
-        onMomentumScrollEnd={() => {
-          unlockScroll();
-          lastNavAtRef.current = Date.now();
-          maybeRebaseToCenter();
-        }}
+        decelerationRate="fast"
+        onMomentumScrollBegin={lockScroll}
+        onMomentumScrollEnd={handleMomentumEnd}
       />
     );
   },
