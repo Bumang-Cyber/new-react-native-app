@@ -1,14 +1,12 @@
 // CalendarPage.tsx
-import React, { useMemo, useState } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CollapsibleCalendarTabs from '@/components/screens/CalendarScreen/CollapsibleCalendarTabs';
 import DietTab from '@/components/screens/CalendarScreen/Tabs/DietTab';
 import WorkoutTab from '@/components/screens/CalendarScreen/Tabs/WorkoutTab';
 import BodyTab from '@/components/screens/CalendarScreen/Tabs/BodyTab';
-
-type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(
