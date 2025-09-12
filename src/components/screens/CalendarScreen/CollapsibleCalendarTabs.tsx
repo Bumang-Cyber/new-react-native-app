@@ -251,7 +251,6 @@ export default function CollapsibleCalendarTabs({
     .activeOffsetX([-15, 15]) // 수평 브러시 스와이프와 충돌 줄이기
     .minDistance(3);
 
-  const [page, setPage] = useState(0); // 페이지
   const [tabW, setTabW] = useState(0); // 탭 바 전체 폭
   const tabPos = useSharedValue(0); // 0,1,2
 
@@ -265,7 +264,6 @@ export default function CollapsibleCalendarTabs({
   const bodyTextStyle = useTabTextStyle(2, tabPos);
 
   const goPage = (idx: number) => {
-    pagerRef.current?.setPage(idx);
     // 클릭은 살짝만 애니메이션 (짧게)
     tabPos.value = withTiming(idx);
   };
@@ -329,22 +327,6 @@ export default function CollapsibleCalendarTabs({
 
       {/* 캘린더 영역 (월/주 겹침) */}
       <Animated.View style={[styles.calendar, calStyle]}>
-        {/* 월간 */}
-        <Animated.View
-          style={[styles.fill, monthFade]}
-          pointerEvents={viewMode === 'month' ? 'auto' : 'none'}
-        >
-          <SwipeMonthCalendarInfinite
-            ref={monthCalendarRef}
-            selected={selected}
-            onMonthChange={handleMonthChange}
-            onSelectDate={handleSelectDate}
-            gridWidth={gridWidth}
-            cellWidth={cellWidth}
-            width={width}
-          />
-        </Animated.View>
-
         {/* 주간 */}
         <Animated.View
           style={[styles.fill, weekFade]}
@@ -355,6 +337,22 @@ export default function CollapsibleCalendarTabs({
             selected={selected}
             onSelectDate={handleSelectDate}
             onWeekChange={handleWeekChange}
+            gridWidth={gridWidth}
+            cellWidth={cellWidth}
+            width={width}
+          />
+        </Animated.View>
+
+        {/* 월간 */}
+        <Animated.View
+          style={[styles.fill, monthFade]}
+          pointerEvents={viewMode === 'month' ? 'auto' : 'none'}
+        >
+          <SwipeMonthCalendarInfinite
+            ref={monthCalendarRef}
+            selected={selected}
+            onMonthChange={handleMonthChange}
+            onSelectDate={handleSelectDate}
             gridWidth={gridWidth}
             cellWidth={cellWidth}
             width={width}
@@ -418,8 +416,6 @@ export default function CollapsibleCalendarTabs({
         onPageScroll={e => {
           const { position, offset } = e.nativeEvent; // position: 정수 페이지, offset: 0~1
           // 스와이프 중엔 애니메이션 없이 즉시 반영 → 거의 동시에 움직임
-          const idx = e.nativeEvent.position;
-          setPage(idx);
           tabPos.value = position + offset;
         }}
       >

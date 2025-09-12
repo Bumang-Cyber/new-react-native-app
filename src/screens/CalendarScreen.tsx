@@ -10,37 +10,10 @@ import BodyTab from '@/components/screens/CalendarScreen/Tabs/BodyTab';
 
 type Event = { id: string; title: string; time?: string; date: string }; // date: 'YYYY-MM-DD'
 
-// 데모용 일정 데이터
-const SAMPLE_EVENTS: Event[] = [
-  {
-    id: '1',
-    title: '디자인 미팅',
-    time: '10:00',
-    date: dayjs().format('YYYY-MM-DD'),
-  },
-  {
-    id: '2',
-    title: 'iOS 배포',
-    time: '14:00',
-    date: dayjs().add(1, 'day').format('YYYY-MM-DD'),
-  },
-  {
-    id: '3',
-    title: '런칭 리허설',
-    date: dayjs().add(2, 'day').format('YYYY-MM-DD'),
-  },
-];
-
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(
     dayjs().startOf('day'),
   );
-
-  // 선택된 날짜의 이벤트 필터
-  const eventsForSelected = useMemo(() => {
-    const key = selectedDate.format('YYYY-MM-DD');
-    return SAMPLE_EVENTS.filter(e => e.date === key);
-  }, [selectedDate]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
