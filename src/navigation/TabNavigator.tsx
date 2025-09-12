@@ -6,6 +6,8 @@ import CalendarScreen from '@/screens/CalendarScreen';
 import LibraryScreen from '@/screens/LibraryScreen';
 import MyPageScreen from '@/screens/MyPageScreen';
 import Icon from 'react-native-vector-icons/FontAwesome6';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform } from 'react-native';
 
 const Tab = createBottomTabNavigator();
 
@@ -34,6 +36,21 @@ const getTabBarIcon = ({ route, color, size }: any) => {
 };
 
 const TabNavigator = () => {
+  const insets = useSafeAreaInsets();
+
+  // 안드 전용 기본 여유값(디자인에 맞게 조절)
+  const ANDROID_BASE = 56; // 기본 높이
+  const MIN_BOTTOM_PAD = 16; // 최소 하단 패딩
+
+  const androidBottomMargin = React.useMemo(
+    () => ({
+      height: ANDROID_BASE + Math.max(insets.bottom, MIN_BOTTOM_PAD),
+      paddingBottom: Math.max(insets.bottom, MIN_BOTTOM_PAD),
+      paddingTop: 6,
+    }),
+    [insets.bottom],
+  );
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -42,9 +59,14 @@ const TabNavigator = () => {
         tabBarActiveTintColor: '#000',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
           marginTop: 8,
           fontSize: 10,
+        },
+        tabBarStyle: {
+          ...(Platform.OS === 'android' && androidBottomMargin),
+          elevation: 8,
         },
       })}
     >

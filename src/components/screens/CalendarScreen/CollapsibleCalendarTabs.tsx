@@ -264,6 +264,7 @@ export default function CollapsibleCalendarTabs({
   const bodyTextStyle = useTabTextStyle(2, tabPos);
 
   const goPage = (idx: number) => {
+    pagerRef.current?.setPage(idx);
     // 클릭은 살짝만 애니메이션 (짧게)
     tabPos.value = withTiming(idx);
   };
