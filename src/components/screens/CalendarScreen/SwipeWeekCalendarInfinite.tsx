@@ -13,7 +13,6 @@ import {
   Pressable,
   StyleSheet,
   ListRenderItemInfo,
-  ViewToken,
 } from 'react-native';
 import dayjs, { Dayjs } from 'dayjs';
 import isTodayPlugin from 'dayjs/plugin/isToday';
@@ -78,7 +77,7 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
   const unlockScroll = () => setScrollLocked(false);
 
   // Navigation cooldown
-  const NAV_COOLDOWN = 280;
+  const NAV_COOLDOWN = 420;
   const lastNavAtRef = useRef(0);
   const inCooldown = () => {
     const now = Date.now();
@@ -139,15 +138,21 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
     [width],
   );
 
-  const onViewable = useRef(
-    (info: { viewableItems: Array<ViewToken<number>> }) => {
-      if (teleportingRef.current) return;
-      const i = info.viewableItems?.[0]?.index ?? null;
-      if (i == null) return;
-      lastIndexRef.current = i;
-      onWeekChange?.(weekFromIndex(i));
-    },
-  ).current;
+  const handleMomentumEnd = (e: any) => {
+    unlockScroll();
+    if (teleportingRef.current) return;
+
+    const x = e.nativeEvent.contentOffset.x;
+    const idx = Math.round(x / width); // 정착 인덱스 계산
+
+    if (idx !== lastIndexRef.current) {
+      lastIndexRef.current = idx;
+      onWeekChange?.(weekFromIndex(idx));
+    }
+
+    lastNavAtRef.current = Date.now();
+    maybeRebaseToCenter(); // 모멘텀 종료 후 재베이스 1회
+  };
 
   const goByWeeks = useCallback(
     (step: number) => {
@@ -264,18 +269,14 @@ const SwipeWeekInfinite = forwardRef<SwipeWeekHandle, Props>(function C(
       renderItem={renderItem}
       initialScrollIndex={WEEK_CENTER}
       getItemLayout={getItemLayout}
-      onViewableItemsChanged={onViewable}
-      viewabilityConfig={{ itemVisiblePercentThreshold: 95 }}
       showsHorizontalScrollIndicator={false}
-      windowSize={3}
-      initialNumToRender={3}
-      maxToRenderPerBatch={3}
+      windowSize={5}
+      initialNumToRender={5}
+      maxToRenderPerBatch={5}
       removeClippedSubviews
-      onMomentumScrollEnd={() => {
-        unlockScroll();
-        lastNavAtRef.current = Date.now();
-        maybeRebaseToCenter();
-      }}
+      decelerationRate="fast"
+      onMomentumScrollBegin={lockScroll}
+      onMomentumScrollEnd={handleMomentumEnd}
     />
   );
 });

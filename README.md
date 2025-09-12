@@ -121,6 +121,8 @@ npm run android
 
 ## 주요 구현 상세
 
+<img src="./docs/horizontal_swipe.gif" width="300" />
+
 ### 1. 캘린더 코어
 
 - 링 버퍼형 FlatList:
@@ -137,6 +139,10 @@ npm run android
 
 - 쿨다운(디바운스): 연타/연속 제스처로 이중 이동되는 문제를 NAV_COOLDOWN 으로 해결
 
+<br />
+
+<img src="./docs/vertical_gesture.gif" width="300" />
+
 ### 2. 월 <-> 주 전환
 
 - 상단 캘린더 컨테이너의 height를 Reanimated interpolate로 제어
@@ -146,6 +152,10 @@ npm run android
 - Gesture.Pan()의 translationY로 진행도를 계산, 임계값/속도로 최종 상태 결정
 
 - 모드 전환 시 각 캘린더의 opacity 보정. 자연스러운 fade-in-out 효과 연출
+
+<br />
+
+<img src="./docs/change_select_date.gif" width="300" />
 
 ### 3. 날짜 선택/오늘 강조
 

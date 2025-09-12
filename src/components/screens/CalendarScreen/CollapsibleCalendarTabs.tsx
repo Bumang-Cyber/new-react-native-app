@@ -120,12 +120,15 @@ export default function CollapsibleCalendarTabs({
         !weekViewportStartRef.current.isSame(targetWeek, 'day')
       ) {
         syncingRef.current = 'week';
-        weekCalendarRef.current?.goToWeek?.(targetWeek, {
-          animated: false,
-          select: false,
+        requestAnimationFrame(() => {
+          // 추가: 한 프레임 뒤에 워프 실행
+          weekCalendarRef.current?.goToWeek?.(targetWeek, {
+            animated: false,
+            select: false,
+          });
+          weekViewportStartRef.current = targetWeek;
+          syncingRef.current = null; // 추가: 플래그 해제
         });
-        weekViewportStartRef.current = targetWeek;
-        syncingRef.current = null;
       }
       return next;
     });
@@ -147,12 +150,15 @@ export default function CollapsibleCalendarTabs({
       !isSameMonth(monthViewportStartRef.current, targetMonth)
     ) {
       syncingRef.current = 'month';
-      monthCalendarRef.current?.goToDate?.(next, {
-        animated: false,
-        select: false,
+      requestAnimationFrame(() => {
+        // 추가: 한 프레임 뒤에 워프 실행
+        monthCalendarRef.current?.goToDate?.(next, {
+          animated: false,
+          select: false,
+        });
+        monthViewportStartRef.current = targetMonth;
+        syncingRef.current = null; // 추가: 플래그 해제
       });
-      monthViewportStartRef.current = targetMonth;
-      syncingRef.current = null;
     }
   };
 
@@ -176,9 +182,6 @@ export default function CollapsibleCalendarTabs({
       weekCalendarRef.current?.goNextWeek();
     }
   };
-
-  // 파일 상단에 dayjs 기본 import가 없다면 추가
-  // import dayjs from 'dayjs';
 
   const handleGoToday = () => {
     if (syncingRef.current) return;
@@ -370,11 +373,8 @@ export default function CollapsibleCalendarTabs({
 
       {/* 월 표기 */}
       <View style={styles.calendarTitle}>
-        <Animated.Text style={[styles.title, styles.absolute, monthFade]}>
-          {monthStart.format('YYYY년 MM월')}
-        </Animated.Text>
-        <Animated.Text style={[styles.title, styles.absolute, weekFade]}>
-          {weekStart.format('YYYY년 MM월')}
+        <Animated.Text style={[styles.title, styles.absolute]}>
+          {cursorDate.format('YYYY년 MM월')}
         </Animated.Text>
       </View>
 
